@@ -1,0 +1,8 @@
+{
+	"parent": "minecraft:block/cube_bottom_top",
+	"textures": {
+		"bottom": "vultrom:block/guard_post",
+		"top": "vultrom:block/guard_post",
+		"side": "vultrom:block/guard_post"
+	}
+}

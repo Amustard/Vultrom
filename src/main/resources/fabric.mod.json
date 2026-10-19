@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "vultrom",
+	"version": "${version}",
+	"name": "Vultrom",
+	"description": "Server utility mod for the Vultrom Minecraft server. Feature #1: Security Guards.",
+	"authors": [
+		"Mason Buntin"
+	],
+	"contact": {
+		"sources": "https://github.com/Amustard/Vultrom"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/vultrom/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.vultrom.Vultrom"
+		],
+		"client": [
+			"net.vultrom.client.VultromClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
