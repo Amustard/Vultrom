@@ -7,5 +7,6 @@
 	"subtitles.entity.vultrom.security_guard.hurt": "Security Guard hurts",
 	"subtitles.entity.vultrom.security_guard.death": "Security Guard dies",
 	"subtitles.entity.vultrom.security_guard.no": "Security Guard disagrees",
-	"subtitles.entity.vultrom.security_guard.yes": "Security Guard agrees"
+	"subtitles.entity.vultrom.security_guard.yes": "Security Guard agrees",
+	"subtitles.entity.vultrom.security_guard.chase": "Security Guard shouts"
 }

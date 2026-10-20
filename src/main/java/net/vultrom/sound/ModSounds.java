@@ -17,6 +17,8 @@ public final class ModSounds {
 	public static final SoundEvent GUARD_DEATH = register("entity.security_guard.death");
 	public static final SoundEvent GUARD_NO = register("entity.security_guard.no");
 	public static final SoundEvent GUARD_YES = register("entity.security_guard.yes");
+	/** Played when a player hits the guard and chase starts. */
+	public static final SoundEvent GUARD_CHASE = register("entity.security_guard.chase");
 
 	private ModSounds() {
 	}

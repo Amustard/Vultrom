@@ -196,10 +196,23 @@ public class SecurityGuardEntity extends PathfinderMob {
 	}
 
 	private void beginPursuit(LivingEntity target) {
+		boolean alreadyChasing = this.pursuitMode && this.getTarget() == target;
 		this.pursuitMode = true;
 		this.lostSightTicks = 0;
 		this.setTarget(target);
-		this.playSound(ModSounds.GUARD_NO, 1.0f, 1.0f);
+		if (!alreadyChasing) {
+			// Loud enough to notice nearby, not ear-blasting.
+			this.level().playSound(
+					null,
+					this.getX(),
+					this.getY(),
+					this.getZ(),
+					ModSounds.GUARD_CHASE,
+					this.getSoundSource(),
+					1.35f,
+					1.0f
+			);
+		}
 	}
 
 	private void tickMovement() {
