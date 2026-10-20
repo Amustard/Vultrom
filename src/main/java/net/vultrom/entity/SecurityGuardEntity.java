@@ -261,14 +261,16 @@ public class SecurityGuardEntity extends PathfinderMob {
 			return;
 		}
 		this.exemptTips.put(player.getUUID(), 20 * 20);
-		if (player.isCreative() || player.isSpectator()) {
-			player.sendSystemMessage(Component.literal(
-					"Security Guard notices your items but ignores creative/spectator players."
-			));
-		}
+		player.sendSystemMessage(Component.literal(
+				"Security Guard sees flagged items but skips you (creative/spectator/ally)."
+		));
 	}
 
 	private static ItemStack findFlaggedItem(Player player) {
+		ItemStack selected = player.getInventory().getSelectedItem();
+		if (GriefItems.isFlagged(selected)) {
+			return selected;
+		}
 		ItemStack main = player.getMainHandItem();
 		if (GriefItems.isFlagged(main)) {
 			return main;
@@ -276,6 +278,11 @@ public class SecurityGuardEntity extends PathfinderMob {
 		ItemStack off = player.getOffhandItem();
 		if (GriefItems.isFlagged(off)) {
 			return off;
+		}
+		for (ItemStack stack : player.getInventory().getNonEquipmentItems()) {
+			if (GriefItems.isFlagged(stack)) {
+				return stack;
+			}
 		}
 		for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
 			ItemStack stack = player.getInventory().getItem(i);
@@ -293,46 +300,48 @@ public class SecurityGuardEntity extends PathfinderMob {
 			severity = GriefItems.Severity.HARD;
 		}
 
-		boolean onCooldown = this.warnCooldowns.containsKey(id);
+		String itemName = flagged.getItemName().getString();
 		int warns = this.warnCounts.getOrDefault(id, 0);
+		boolean onCooldown = this.warnCooldowns.containsKey(id);
 
-		if (severity == GriefItems.Severity.CRITICAL && (this.tone.captureOnCritical() || this.tone == EnforcementTone.STRICT)) {
-			this.warn(player, flagged);
-			this.confiscateAll(post, player, level);
-			this.setTarget(player);
-			if (this.captureEnabled) {
-				this.detain(post, player, "critical grief item: " + flagged.getHoverName().getString());
-			}
-			this.warnCounts.put(id, warns + 1);
-			this.warnCooldowns.put(id, this.tone.warnCooldownTicks());
-			return;
-		}
-
-		if (!onCooldown) {
-			this.warn(player, flagged);
-			this.warnCounts.put(id, warns + 1);
-			this.warnCooldowns.put(id, this.tone.warnCooldownTicks());
-			if (severity != GriefItems.Severity.SOFT) {
-				this.confiscateAll(post, player, level);
-			}
-			if (this.captureEnabled && warns + 1 > this.tone.warnsBeforeAttack()) {
-				this.detain(post, player, "ignored security orders (" + flagged.getHoverName().getString() + ")");
-			} else if (warns + 1 > this.tone.warnsBeforeAttack()) {
-				this.setTarget(player);
+		// Soft: warn only.
+		if (severity == GriefItems.Severity.SOFT) {
+			if (!onCooldown) {
+				this.warn(player, itemName);
+				this.warnCounts.put(id, warns + 1);
+				this.warnCooldowns.put(id, this.tone.warnCooldownTicks());
 			}
 			return;
 		}
 
-		this.setTarget(player);
+		// Hard / critical: warn → take items → detain in the SAME encounter when Capture is on.
+		// (Old logic confiscated first, then never detained because inventory was empty.)
+		this.warn(player, itemName);
+		this.warnCounts.put(id, warns + 1);
+		this.warnCooldowns.put(id, this.tone.warnCooldownTicks());
 		this.confiscateAll(post, player, level);
+		this.setTarget(player);
+
 		if (this.captureEnabled) {
-			this.detain(post, player, "resisting security orders (" + flagged.getHoverName().getString() + ")");
+			// Detain on the same encounter after confiscating (hard + critical).
+			// Warn-first tone still warns in chat first; capture happens immediately after take.
+			if (this.tone == EnforcementTone.WARN_FIRST && severity != GriefItems.Severity.CRITICAL && warns < 1) {
+				player.sendSystemMessage(Component.literal(
+						"Security Guard: last warning — next time you will be detained."
+				));
+			} else {
+				this.detain(post, player, "flagged item: " + itemName);
+			}
+		} else {
+			player.sendSystemMessage(Component.literal(
+					"Security Guard: Capture is OFF at this post — items taken, but you won't be detained. Turn Capture ON at the desk."
+			));
 		}
 	}
 
-	private void warn(ServerPlayer player, ItemStack flagged) {
+	private void warn(ServerPlayer player, String itemName) {
 		player.sendSystemMessage(Component.literal(
-				"Security Guard: Drop or surrender " + flagged.getHoverName().getString() + " — protected area."
+				"Security Guard: Drop or surrender " + itemName + " — protected area."
 		));
 		player.sendOverlayMessage(Component.literal("Security warning"));
 		this.playSound(ModSounds.GUARD_NO, 1.0f, 1.0f);
@@ -341,18 +350,21 @@ public class SecurityGuardEntity extends PathfinderMob {
 
 	private void confiscateAll(GuardPostBlockEntity post, ServerPlayer player, ServerLevel level) {
 		int taken = 0;
-		for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-			ItemStack stack = player.getInventory().getItem(i);
+		var inv = player.getInventory();
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack stack = inv.getItem(i);
 			if (!GriefItems.isFlagged(stack)) {
 				continue;
 			}
 			ItemStack removed = stack.copy();
-			player.getInventory().setItem(i, ItemStack.EMPTY);
+			inv.setItem(i, ItemStack.EMPTY);
 			if (!post.storeEvidence(removed)) {
 				this.spawnAtLocation(level, removed, 0.0f);
 			}
 			taken++;
-			player.sendSystemMessage(Component.literal("Security Guard confiscated " + removed.getHoverName().getString() + "."));
+			player.sendSystemMessage(Component.literal(
+					"Security Guard confiscated " + removed.getItemName().getString() + "."
+			));
 		}
 		if (taken > 0) {
 			this.playSound(ModSounds.GUARD_YES, 1.0f, 1.0f);
@@ -366,13 +378,17 @@ public class SecurityGuardEntity extends PathfinderMob {
 	}
 
 	private void detain(GuardPostBlockEntity post, ServerPlayer player, String reason) {
-		if (!this.captureEnabled || DetainTracker.isDetained(player.getUUID())) {
+		if (!this.captureEnabled) {
+			player.sendSystemMessage(Component.literal("Capture is OFF — enable it at the Guard Post desk."));
+			return;
+		}
+		if (DetainTracker.isDetained(player.getUUID())) {
 			return;
 		}
 		DetainTracker.detain(player, post.holdPoint(), this.postPos, this.detainSeconds, reason);
 		post.markDetained(player.getUUID());
 		this.playSound(ModSounds.GUARD_NO, 1.0f, 0.8f);
-		this.setTarget(null);
+		this.clearPursuit();
 	}
 
 	@Override

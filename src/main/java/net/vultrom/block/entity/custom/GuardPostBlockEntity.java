@@ -56,7 +56,7 @@ public class GuardPostBlockEntity extends BlockEntity implements MenuProvider {
 	private PatrolMode patrolMode = PatrolMode.STAND;
 	private int patrolDistance = 8;
 	private int areaRadius = 16;
-	private boolean captureEnabled;
+	private boolean captureEnabled = true;
 	private int detainSeconds = 60;
 	@Nullable
 	private UUID guardUuid;
@@ -401,7 +401,7 @@ public class GuardPostBlockEntity extends BlockEntity implements MenuProvider {
 		this.patrolMode = PatrolMode.byId(input.getIntOr("PatrolMode", PatrolMode.STAND.ordinal()));
 		this.patrolDistance = clamp(input.getIntOr("PatrolDistance", 8), MIN_PATROL, MAX_PATROL);
 		this.areaRadius = clamp(input.getIntOr("AreaRadius", 16), MIN_AREA, MAX_AREA);
-		this.captureEnabled = input.getBooleanOr("CaptureEnabled", false);
+		this.captureEnabled = input.getBooleanOr("CaptureEnabled", true);
 		this.detainSeconds = clamp(input.getIntOr("DetainSeconds", 60), MIN_DETAIN_SECONDS, MAX_DETAIN_SECONDS);
 		this.guardUuid = parseUuid(input.getStringOr("GuardUuid", ""));
 		this.detaineeUuid = parseUuid(input.getStringOr("DetaineeUuid", ""));
