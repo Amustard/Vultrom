@@ -11,6 +11,7 @@ import net.vultrom.block.ModBlocks;
 import net.vultrom.block.entity.ModBlockEntities;
 import net.vultrom.entity.ModEntityTypes;
 import net.vultrom.menu.ModMenuTypes;
+import net.vultrom.sound.ModSounds;
 
 public class Vultrom implements ModInitializer {
 	public static final String MOD_ID = "vultrom";
@@ -18,6 +19,7 @@ public class Vultrom implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		ModSounds.initialize();
 		ModBlocks.initialize();
 		ModBlockEntities.initialize();
 		ModEntityTypes.registerModEntityTypes();

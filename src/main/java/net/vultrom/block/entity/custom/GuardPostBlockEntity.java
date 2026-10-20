@@ -240,11 +240,13 @@ public class GuardPostBlockEntity extends BlockEntity implements MenuProvider {
 		return player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
 	}
 
+	/**
+	 * Creative / spectator / allies skip search-attack-detain.
+	 * Operators in survival are NOT exempt (so singleplayer testing works);
+	 * they can still configure the desk via {@link #canConfigure}.
+	 */
 	public boolean isExempt(Player player) {
-		if (player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
-			return true;
-		}
-		if (player.isCreative()) {
+		if (player.isCreative() || player.isSpectator()) {
 			return true;
 		}
 		return this.isAlly(player.getUUID());

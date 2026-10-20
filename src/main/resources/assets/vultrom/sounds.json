@@ -1,0 +1,47 @@
+{
+	"entity.security_guard.ambient": {
+		"subtitle": "subtitles.entity.vultrom.security_guard.ambient",
+		"sounds": [
+			{
+				"type": "event",
+				"name": "minecraft:entity.villager.ambient"
+			}
+		]
+	},
+	"entity.security_guard.hurt": {
+		"subtitle": "subtitles.entity.vultrom.security_guard.hurt",
+		"sounds": [
+			{
+				"type": "event",
+				"name": "minecraft:entity.villager.hurt"
+			}
+		]
+	},
+	"entity.security_guard.death": {
+		"subtitle": "subtitles.entity.vultrom.security_guard.death",
+		"sounds": [
+			{
+				"type": "event",
+				"name": "minecraft:entity.villager.death"
+			}
+		]
+	},
+	"entity.security_guard.no": {
+		"subtitle": "subtitles.entity.vultrom.security_guard.no",
+		"sounds": [
+			{
+				"type": "event",
+				"name": "minecraft:entity.villager.no"
+			}
+		]
+	},
+	"entity.security_guard.yes": {
+		"subtitle": "subtitles.entity.vultrom.security_guard.yes",
+		"sounds": [
+			{
+				"type": "event",
+				"name": "minecraft:entity.villager.yes"
+			}
+		]
+	}
+}
