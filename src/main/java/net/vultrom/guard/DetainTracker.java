@@ -14,7 +14,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * World-scoped MVP detain state. Logout clears detain; no offline jail.
+ * Held-at-post state after a successful escort. Logout / death clears hold.
  */
 public final class DetainTracker {
 	private static final Map<UUID, DetainRecord> DETAINED = new HashMap<>();
@@ -33,22 +33,41 @@ public final class DetainTracker {
 		return DETAINED.get(playerId);
 	}
 
-	public static void detain(ServerPlayer player, BlockPos holdPos, BlockPos postPos, int seconds, String reason) {
+	public static void holdAtPost(ServerPlayer player, BlockPos holdPos, BlockPos postPos, int seconds, String reason) {
 		int ticks = Math.max(20, seconds * 20);
 		DETAINED.put(player.getUUID(), new DetainRecord(holdPos.immutable(), ticks, reason, postPos.immutable()));
 		player.teleportTo(holdPos.getX() + 0.5, holdPos.getY(), holdPos.getZ() + 0.5);
 		player.setDeltaMovement(Vec3.ZERO);
-		player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, ticks, 6, false, false, true));
-		player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, ticks, 200, false, false, true));
+		applyCuffs(player, ticks);
 		player.sendSystemMessage(Component.literal("Detained at Guard Post — " + reason));
-		player.sendOverlayMessage(Component.literal("Detained: " + reason));
+		player.sendOverlayMessage(Component.literal("Detained at post"));
 
 		if (player.level() instanceof ServerLevel serverLevel) {
 			serverLevel.getServer().getPlayerList().broadcastSystemMessage(
-					Component.literal("[Vultrom] " + player.getGameProfile().name() + " detained at " + postPos.toShortString() + " (" + reason + ")"),
+					Component.literal("[Vultrom] " + player.getGameProfile().name()
+							+ " detained at " + postPos.toShortString() + " (" + reason + ")"),
 					false
 			);
 		}
+	}
+
+	/** Soft “handcuffs”: slow, no jump, weak swings, no digging. */
+	public static void applyCuffs(ServerPlayer player, int ticks) {
+		player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, ticks, 4, false, false, true));
+		player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, ticks, 200, false, false, true));
+		player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, ticks, 2, false, false, true));
+		player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, ticks, 3, false, false, true));
+	}
+
+	public static void applyEscortCuffs(ServerPlayer player) {
+		applyCuffs(player, 40);
+	}
+
+	public static void clearCuffEffects(ServerPlayer player) {
+		player.removeEffect(MobEffects.SLOWNESS);
+		player.removeEffect(MobEffects.JUMP_BOOST);
+		player.removeEffect(MobEffects.WEAKNESS);
+		player.removeEffect(MobEffects.MINING_FATIGUE);
 	}
 
 	public static void release(UUID playerId, ServerLevel level, String message) {
@@ -58,8 +77,7 @@ public final class DetainTracker {
 		}
 		ServerPlayer player = level.getServer().getPlayerList().getPlayer(playerId);
 		if (player != null) {
-			player.removeEffect(MobEffects.SLOWNESS);
-			player.removeEffect(MobEffects.JUMP_BOOST);
+			clearCuffEffects(player);
 			if (message != null) {
 				player.sendSystemMessage(Component.literal(message));
 			}
@@ -87,19 +105,17 @@ public final class DetainTracker {
 			}
 			if (left <= 0) {
 				it.remove();
-				player.removeEffect(MobEffects.SLOWNESS);
-				player.removeEffect(MobEffects.JUMP_BOOST);
+				clearCuffEffects(player);
 				player.sendSystemMessage(Component.literal("You have been released from the Guard Post."));
 				continue;
 			}
 			DETAINED.put(entry.getKey(), new DetainRecord(record.holdPos(), left, record.reason(), record.postPos()));
-			// Soft root: keep near hold point
 			BlockPos hold = record.holdPos();
 			if (player.distanceToSqr(hold.getX() + 0.5, hold.getY(), hold.getZ() + 0.5) > 4.0) {
 				player.teleportTo(hold.getX() + 0.5, hold.getY(), hold.getZ() + 0.5);
 			}
 			if (player.tickCount % 40 == 0) {
-				player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 6, false, false, true));
+				applyCuffs(player, 60);
 			}
 		}
 	}

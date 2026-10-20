@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
@@ -29,8 +30,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import net.vultrom.block.entity.custom.GuardPostBlockEntity;
+import net.vultrom.guard.ArrestState;
 import net.vultrom.guard.DetainTracker;
 import net.vultrom.guard.EnforcementTone;
 import net.vultrom.guard.GriefItems;
@@ -38,11 +41,16 @@ import net.vultrom.guard.PatrolMode;
 import net.vultrom.sound.ModSounds;
 
 /**
- * On-duty security NPC. Vanilla villager proportions; client renderer supplies the custom skin.
+ * On-duty security NPC. Capture is chase → restrain → escort → hold (escapable).
  */
 public class SecurityGuardEntity extends PathfinderMob {
 	private static final int LOST_SIGHT_GIVE_UP_TICKS = 60;
 	private static final double CHASE_MAX_RANGE = 64.0;
+	private static final int RESTRAIN_TICKS_NEEDED = 45; // ~2.25s in melee
+	private static final double RESTRAIN_RANGE = 2.75;
+	private static final double RESTRAIN_BREAK_RANGE = 4.0;
+	private static final int ESCORT_HITS_TO_BREAK = 3;
+	private static final double ESCORT_BREAK_DISTANCE = 14.0;
 
 	private BlockPos postPos = BlockPos.ZERO;
 	private EnforcementTone tone = EnforcementTone.BALANCED;
@@ -54,8 +62,13 @@ public class SecurityGuardEntity extends PathfinderMob {
 
 	private int scanCooldown;
 	private int patrolCooldown;
-	private boolean pursuitMode;
+	private ArrestState arrestState = ArrestState.NONE;
 	private int lostSightTicks;
+	private int restrainProgress;
+	private int escortHitsTaken;
+	@Nullable
+	private String arrestReason;
+
 	private final Map<UUID, Integer> warnCounts = new HashMap<>();
 	private final Map<UUID, Integer> warnCooldowns = new HashMap<>();
 	private final Map<UUID, Integer> exemptTips = new HashMap<>();
@@ -113,6 +126,10 @@ public class SecurityGuardEntity extends PathfinderMob {
 		return this.postPos;
 	}
 
+	public ArrestState getArrestState() {
+		return this.arrestState;
+	}
+
 	@Nullable
 	private GuardPostBlockEntity postEntity() {
 		if (this.level() == null) {
@@ -136,7 +153,7 @@ public class SecurityGuardEntity extends PathfinderMob {
 		}
 
 		this.tickWarnCooldowns();
-		this.tickPursuit(serverLevel, post);
+		this.tickArrest(serverLevel, post);
 		this.tickMovement();
 		if (this.scanCooldown-- <= 0) {
 			this.scanCooldown = 10;
@@ -163,45 +180,154 @@ public class SecurityGuardEntity extends PathfinderMob {
 		});
 	}
 
-	private void tickPursuit(ServerLevel level, GuardPostBlockEntity post) {
+	private void tickArrest(ServerLevel level, GuardPostBlockEntity post) {
+		if (this.arrestState == ArrestState.NONE || this.arrestState == ArrestState.HELD) {
+			return;
+		}
+
 		LivingEntity target = this.getTarget();
-		if (!this.pursuitMode) {
+		if (!(target instanceof ServerPlayer player) || !player.isAlive() || this.distanceTo(player) > CHASE_MAX_RANGE) {
+			this.breakArrest(playerOrNull(target), "Security Guard lost you.");
 			return;
 		}
-		if (target == null || !target.isAlive() || this.distanceTo(target) > CHASE_MAX_RANGE) {
-			this.clearPursuit();
+		if (DetainTracker.isDetained(player.getUUID())) {
+			this.clearArrest(false);
 			return;
 		}
-		if (this.hasLineOfSight(target)) {
+
+		switch (this.arrestState) {
+			case CHASE -> this.tickChase(player);
+			case RESTRAINING -> this.tickRestrain(level, post, player);
+			case ESCORTING -> this.tickEscort(level, post, player);
+			default -> {
+			}
+		}
+	}
+
+	private void tickChase(ServerPlayer player) {
+		if (this.hasLineOfSight(player)) {
 			this.lostSightTicks = 0;
 		} else {
 			this.lostSightTicks++;
 			if (this.lostSightTicks >= LOST_SIGHT_GIVE_UP_TICKS) {
-				this.clearPursuit();
+				this.breakArrest(player, "You lost the Security Guard.");
 				return;
 			}
 		}
-		this.getNavigation().moveTo(target, 1.3);
-		if (target instanceof ServerPlayer player && this.captureEnabled && this.distanceTo(player) < 2.5) {
-			this.confiscateAll(post, player, level);
-			this.detain(post, player, "assaulted a Security Guard");
-			this.clearPursuit();
+		this.getNavigation().moveTo(player, 1.3);
+		if (this.captureEnabled && this.distanceTo(player) <= RESTRAIN_RANGE) {
+			this.arrestState = ArrestState.RESTRAINING;
+			this.restrainProgress = 0;
+			player.sendOverlayMessage(Component.literal("Being restrained — break away!"));
+			player.sendSystemMessage(Component.literal(
+					"Security Guard is trying to cuff you — sprint out of reach!"
+			));
 		}
 	}
 
-	private void clearPursuit() {
-		this.pursuitMode = false;
-		this.lostSightTicks = 0;
-		this.setTarget(null);
+	private void tickRestrain(ServerLevel level, GuardPostBlockEntity post, ServerPlayer player) {
+		this.getNavigation().moveTo(player, 1.15);
+		double dist = this.distanceTo(player);
+		if (dist > RESTRAIN_BREAK_RANGE) {
+			this.arrestState = ArrestState.CHASE;
+			this.restrainProgress = 0;
+			player.sendOverlayMessage(Component.literal("Broke free of restrain"));
+			return;
+		}
+		if (dist <= RESTRAIN_RANGE) {
+			this.restrainProgress++;
+			if (this.restrainProgress % 10 == 0) {
+				int pct = Math.min(100, (this.restrainProgress * 100) / RESTRAIN_TICKS_NEEDED);
+				player.sendOverlayMessage(Component.literal("Restraining… " + pct + "%"));
+			}
+			if (this.restrainProgress >= RESTRAIN_TICKS_NEEDED) {
+				this.startEscort(level, post, player);
+			}
+		} else {
+			this.restrainProgress = Math.max(0, this.restrainProgress - 2);
+		}
 	}
 
-	private void beginPursuit(LivingEntity target) {
-		boolean alreadyChasing = this.pursuitMode && this.getTarget() == target;
-		this.pursuitMode = true;
+	private void startEscort(ServerLevel level, GuardPostBlockEntity post, ServerPlayer player) {
+		this.arrestState = ArrestState.ESCORTING;
+		this.escortHitsTaken = 0;
+		this.confiscateAll(post, player, level);
+		DetainTracker.applyEscortCuffs(player);
+		player.sendSystemMessage(Component.literal(
+				"Cuffed — being walked to the Guard Post. Hit the guard 3 times or get away to escape!"
+		));
+		player.sendOverlayMessage(Component.literal("Escorting to post"));
+		this.playSound(ModSounds.GUARD_YES, 1.0f, 1.0f);
+	}
+
+	private void tickEscort(ServerLevel level, GuardPostBlockEntity post, ServerPlayer player) {
+		DetainTracker.applyEscortCuffs(player);
+		BlockPos hold = post.holdPoint();
+		Vec3 holdCenter = Vec3.atBottomCenterOf(hold);
+		double distToHold = player.position().distanceTo(holdCenter);
+
+		// Soft lead: nudge player toward the post each tick (escapable).
+		if (distToHold > 1.5) {
+			Vec3 toHold = holdCenter.subtract(player.position()).normalize().scale(0.18);
+			player.setDeltaMovement(player.getDeltaMovement().add(toHold).multiply(0.6, 1.0, 0.6));
+			player.teleportRelative(toHold.x, 0.0, toHold.z);
+		}
+
+		this.getNavigation().moveTo(hold.getX() + 0.5, hold.getY(), hold.getZ() + 0.5, 1.0);
+
+		if (this.distanceTo(player) > ESCORT_BREAK_DISTANCE) {
+			this.breakArrest(player, "You broke away during escort!");
+			return;
+		}
+
+		if (distToHold <= 2.0 && this.distanceTo(player) <= 3.5) {
+			this.finishHold(post, player);
+		}
+	}
+
+	private void finishHold(GuardPostBlockEntity post, ServerPlayer player) {
+		String reason = this.arrestReason != null ? this.arrestReason : "arrested by Security Guard";
+		DetainTracker.holdAtPost(player, post.holdPoint(), this.postPos, this.detainSeconds, reason);
+		post.markDetained(player.getUUID());
+		this.arrestState = ArrestState.HELD;
+		this.playSound(ModSounds.GUARD_NO, 1.0f, 0.8f);
+		this.setTarget(null);
+		this.clearArrest(false);
+		player.sendSystemMessage(Component.literal("Locked at the Guard Post."));
+	}
+
+	private void breakArrest(@Nullable ServerPlayer player, String message) {
+		if (player != null) {
+			DetainTracker.clearCuffEffects(player);
+			player.sendSystemMessage(Component.literal(message));
+			player.sendOverlayMessage(Component.literal("Escaped"));
+		}
+		this.clearArrest(true);
+	}
+
+	private void clearArrest(boolean clearTarget) {
+		this.arrestState = ArrestState.NONE;
+		this.lostSightTicks = 0;
+		this.restrainProgress = 0;
+		this.escortHitsTaken = 0;
+		this.arrestReason = null;
+		if (clearTarget) {
+			this.setTarget(null);
+		}
+	}
+
+	private void beginPursuit(LivingEntity target, String reason) {
+		if (target instanceof ServerPlayer player && DetainTracker.isDetained(player.getUUID())) {
+			return;
+		}
+		boolean already = this.arrestState != ArrestState.NONE && this.getTarget() == target;
+		if (this.arrestState == ArrestState.NONE || this.arrestState == ArrestState.CHASE) {
+			this.arrestState = ArrestState.CHASE;
+		}
+		this.arrestReason = reason;
 		this.lostSightTicks = 0;
 		this.setTarget(target);
-		if (!alreadyChasing) {
-			// Loud enough to notice nearby, not ear-blasting.
+		if (!already) {
 			this.level().playSound(
 					null,
 					this.getX(),
@@ -212,12 +338,32 @@ public class SecurityGuardEntity extends PathfinderMob {
 					1.35f,
 					1.0f
 			);
+			if (target instanceof ServerPlayer player) {
+				player.sendSystemMessage(Component.literal(
+						"Security Guard is chasing you! Get out of sight or stay away to escape."
+				));
+			}
+		}
+	}
+
+	/** Called when the escorting player punches this guard. */
+	public void onEscortStruggleHit(ServerPlayer player) {
+		if (this.arrestState != ArrestState.ESCORTING || this.getTarget() != player) {
+			return;
+		}
+		this.escortHitsTaken++;
+		int left = ESCORT_HITS_TO_BREAK - this.escortHitsTaken;
+		if (left <= 0) {
+			this.breakArrest(player, "You fought free of the cuffs!");
+		} else {
+			player.sendOverlayMessage(Component.literal("Struggle… " + left + " more hit(s) to escape"));
 		}
 	}
 
 	private void tickMovement() {
-		if (this.pursuitMode && this.getTarget() != null) {
-			// Boundaries ignored while chasing an attacker.
+		if (this.arrestState == ArrestState.CHASE
+				|| this.arrestState == ArrestState.RESTRAINING
+				|| this.arrestState == ArrestState.ESCORTING) {
 			return;
 		}
 
@@ -317,7 +463,6 @@ public class SecurityGuardEntity extends PathfinderMob {
 		int warns = this.warnCounts.getOrDefault(id, 0);
 		boolean onCooldown = this.warnCooldowns.containsKey(id);
 
-		// Soft: warn only.
 		if (severity == GriefItems.Severity.SOFT) {
 			if (!onCooldown) {
 				this.warn(player, itemName);
@@ -327,29 +472,28 @@ public class SecurityGuardEntity extends PathfinderMob {
 			return;
 		}
 
-		// Hard / critical: warn → take items → detain in the SAME encounter when Capture is on.
-		// (Old logic confiscated first, then never detained because inventory was empty.)
 		this.warn(player, itemName);
 		this.warnCounts.put(id, warns + 1);
 		this.warnCooldowns.put(id, this.tone.warnCooldownTicks());
 		this.confiscateAll(post, player, level);
-		this.setTarget(player);
 
-		if (this.captureEnabled) {
-			// Detain on the same encounter after confiscating (hard + critical).
-			// Warn-first tone still warns in chat first; capture happens immediately after take.
-			if (this.tone == EnforcementTone.WARN_FIRST && severity != GriefItems.Severity.CRITICAL && warns < 1) {
-				player.sendSystemMessage(Component.literal(
-						"Security Guard: last warning — next time you will be detained."
-				));
-			} else {
-				this.detain(post, player, "flagged item: " + itemName);
-			}
-		} else {
+		if (!this.captureEnabled) {
 			player.sendSystemMessage(Component.literal(
-					"Security Guard: Capture is OFF at this post — items taken, but you won't be detained. Turn Capture ON at the desk."
+					"Security Guard: Capture is OFF — items taken, but no arrest. Turn Capture ON at the desk."
 			));
+			this.setTarget(player);
+			return;
 		}
+
+		if (this.tone == EnforcementTone.WARN_FIRST && severity != GriefItems.Severity.CRITICAL && warns < 1) {
+			player.sendSystemMessage(Component.literal(
+					"Security Guard: last warning — next time they'll chase to arrest you."
+			));
+			return;
+		}
+
+		// Start escapable arrest — not instant hold.
+		this.beginPursuit(player, "flagged item: " + itemName);
 	}
 
 	private void warn(ServerPlayer player, String itemName) {
@@ -390,35 +534,47 @@ public class SecurityGuardEntity extends PathfinderMob {
 		}
 	}
 
-	private void detain(GuardPostBlockEntity post, ServerPlayer player, String reason) {
-		if (!this.captureEnabled) {
-			player.sendSystemMessage(Component.literal("Capture is OFF — enable it at the Guard Post desk."));
-			return;
+	@Override
+	public boolean doHurtTarget(ServerLevel level, Entity target) {
+		// Only fight during chase — never while cuffing / escorting / holding.
+		if (this.arrestState != ArrestState.NONE && this.arrestState != ArrestState.CHASE) {
+			return false;
 		}
-		if (DetainTracker.isDetained(player.getUUID())) {
-			return;
+		if (target instanceof ServerPlayer player && DetainTracker.isDetained(player.getUUID())) {
+			return false;
 		}
-		DetainTracker.detain(player, post.holdPoint(), this.postPos, this.detainSeconds, reason);
-		post.markDetained(player.getUUID());
-		this.playSound(ModSounds.GUARD_NO, 1.0f, 0.8f);
-		this.clearPursuit();
+		return super.doHurtTarget(level, target);
 	}
 
 	@Override
 	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
 		boolean hurt = super.hurtServer(level, source, amount);
-		if (hurt && source.getEntity() instanceof LivingEntity attacker) {
-			// Attackers are chased past post boundaries until line of sight is lost.
-			this.beginPursuit(attacker);
-			if (attacker instanceof ServerPlayer serverPlayer) {
-				this.warnCounts.merge(serverPlayer.getUUID(), 2, Integer::sum);
-				GuardPostBlockEntity post = this.postEntity();
-				if (post != null && this.captureEnabled && !post.isExempt(serverPlayer)) {
-					this.confiscateAll(post, serverPlayer, level);
-				}
-			}
+		if (!hurt) {
+			return false;
 		}
-		return hurt;
+		if (source.getEntity() instanceof ServerPlayer attacker) {
+			if (this.arrestState == ArrestState.ESCORTING && this.getTarget() == attacker) {
+				this.onEscortStruggleHit(attacker);
+				return true;
+			}
+			if (DetainTracker.isDetained(attacker.getUUID())) {
+				return true;
+			}
+			this.beginPursuit(attacker, "assaulted a Security Guard");
+			this.warnCounts.merge(attacker.getUUID(), 2, Integer::sum);
+			GuardPostBlockEntity post = this.postEntity();
+			if (post != null && this.captureEnabled && !post.isExempt(attacker)) {
+				this.confiscateAll(post, attacker, level);
+			}
+		} else if (source.getEntity() instanceof LivingEntity living) {
+			this.beginPursuit(living, "attacked a Security Guard");
+		}
+		return true;
+	}
+
+	@Nullable
+	private static ServerPlayer playerOrNull(LivingEntity entity) {
+		return entity instanceof ServerPlayer player ? player : null;
 	}
 
 	@Nullable
@@ -468,7 +624,7 @@ public class SecurityGuardEntity extends PathfinderMob {
 		this.patrolMode = PatrolMode.byId(input.getIntOr("PatrolMode", PatrolMode.STAND.ordinal()));
 		this.patrolDistance = input.getIntOr("PatrolDistance", 8);
 		this.areaRadius = input.getIntOr("AreaRadius", 16);
-		this.captureEnabled = input.getBooleanOr("CaptureEnabled", false);
+		this.captureEnabled = input.getBooleanOr("CaptureEnabled", true);
 		this.detainSeconds = input.getIntOr("DetainSeconds", 60);
 	}
 
@@ -479,7 +635,6 @@ public class SecurityGuardEntity extends PathfinderMob {
 
 	@Override
 	protected void dropFromLootTable(ServerLevel level, DamageSource damageSource, boolean causedByPlayer) {
-		// No loot — post remains authority.
 	}
 
 	@Override
