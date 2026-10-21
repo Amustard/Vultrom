@@ -8,6 +8,9 @@ import org.jspecify.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -51,6 +54,11 @@ public class SecurityGuardEntity extends PathfinderMob {
 	private static final double RESTRAIN_BREAK_RANGE = 4.0;
 	private static final int ESCORT_HITS_TO_BREAK = 3;
 	private static final double ESCORT_BREAK_DISTANCE = 14.0;
+
+	private static final EntityDataAccessor<Integer> DATA_ARREST_STATE =
+			SynchedEntityData.defineId(SecurityGuardEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> DATA_ESCORT_TARGET_ID =
+			SynchedEntityData.defineId(SecurityGuardEntity.class, EntityDataSerializers.INT);
 
 	private BlockPos postPos = BlockPos.ZERO;
 	private EnforcementTone tone = EnforcementTone.BALANCED;
@@ -130,6 +138,35 @@ public class SecurityGuardEntity extends PathfinderMob {
 		return this.arrestState;
 	}
 
+	/** Client-synced arrest ordinal for leash / VFX. */
+	public ArrestState getSyncedArrestState() {
+		int ordinal = this.entityData.get(DATA_ARREST_STATE);
+		ArrestState[] values = ArrestState.values();
+		if (ordinal < 0 || ordinal >= values.length) {
+			return ArrestState.NONE;
+		}
+		return values[ordinal];
+	}
+
+	/** Entity id of escorted player, or -1. */
+	public int getSyncedEscortTargetId() {
+		return this.entityData.get(DATA_ESCORT_TARGET_ID);
+	}
+
+	@Override
+	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
+		builder.define(DATA_ARREST_STATE, ArrestState.NONE.ordinal());
+		builder.define(DATA_ESCORT_TARGET_ID, -1);
+	}
+
+	private void syncArrestVisuals() {
+		this.entityData.set(DATA_ARREST_STATE, this.arrestState.ordinal());
+		LivingEntity target = this.getTarget();
+		boolean escorting = this.arrestState == ArrestState.ESCORTING && target != null;
+		this.entityData.set(DATA_ESCORT_TARGET_ID, escorting ? target.getId() : -1);
+	}
+
 	@Nullable
 	private GuardPostBlockEntity postEntity() {
 		if (this.level() == null) {
@@ -155,6 +192,7 @@ public class SecurityGuardEntity extends PathfinderMob {
 		this.tickWarnCooldowns();
 		this.tickArrest(serverLevel, post);
 		this.tickMovement();
+		this.syncArrestVisuals();
 		if (this.scanCooldown-- <= 0) {
 			this.scanCooldown = 10;
 			this.scanArea(serverLevel, post);

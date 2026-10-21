@@ -1,6 +1,8 @@
 {
 	"block.vultrom.guard_post": "Guard Post",
 	"item.vultrom.guard_post": "Guard Post",
+	"item.vultrom.camera": "Camera",
+	"item.vultrom.photo": "Photo",
 	"entity.vultrom.security_guard": "Security Guard",
 	"itemGroup.vultrom": "Vultrom",
 	"subtitles.entity.vultrom.security_guard.ambient": "Security Guard mumbles",
