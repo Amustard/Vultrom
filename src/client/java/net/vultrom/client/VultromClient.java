@@ -29,9 +29,11 @@ public class VultromClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		MenuScreens.register(ModMenuTypes.GUARD_POST, GuardPostScreen::new);
 		EntityRenderers.register(ModEntityTypes.SECURITY_GUARD, SecurityGuardRenderer::new);
+		ClientPhotoCapture.register();
 
 		ClientPlayNetworking.registerGlobalReceiver(RequestPhotoCapturePayload.TYPE, (payload, context) -> {
-			context.client().execute(ClientPhotoCapture::captureAndSubmit);
+			// Capture on the next finished level frame — not mid-tick (that was a blue clear color).
+			context.client().execute(ClientPhotoCapture::requestCapture);
 		});
 
 		UseItemCallback.EVENT.register((player, level, hand) -> {
