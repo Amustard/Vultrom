@@ -32,7 +32,7 @@ public class VultromClient implements ClientModInitializer {
 		ClientPhotoCapture.register();
 
 		ClientPlayNetworking.registerGlobalReceiver(RequestPhotoCapturePayload.TYPE, (payload, context) -> {
-			// Capture on next end-of-tick (previous finished frame) — same timing as F2.
+			// Mixin captures on the next GameRenderer.render pass at the vanilla F2 moment.
 			context.client().execute(ClientPhotoCapture::requestCapture);
 		});
 
