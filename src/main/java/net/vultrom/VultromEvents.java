@@ -1,17 +1,23 @@
 package net.vultrom;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.npc.villager.Villager;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 
+import net.vultrom.block.entity.custom.TraderDeskBlockEntity;
 import net.vultrom.entity.SecurityGuardEntity;
 import net.vultrom.guard.ArrestState;
 import net.vultrom.guard.DetainTracker;
+import net.vultrom.market.TraderDeskIndex;
 
 /**
  * Lifecycle hooks: detain clear on logout/death, and no PvE beatdowns while cuffed/held.
@@ -21,6 +27,22 @@ public final class VultromEvents {
 	}
 
 	public static void register() {
+		UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+			if (level.isClientSide() || !(entity instanceof Villager villager) || !(level instanceof ServerLevel serverLevel)) {
+				return InteractionResult.PASS;
+			}
+			BlockPos deskPos = TraderDeskIndex.findDesk(serverLevel, villager.getUUID());
+			if (deskPos == null) {
+				return InteractionResult.PASS;
+			}
+			if (serverLevel.getBlockEntity(deskPos) instanceof TraderDeskBlockEntity desk) {
+				desk.openShop(player);
+				return InteractionResult.SUCCESS;
+			}
+			TraderDeskIndex.unbind(villager.getUUID());
+			return InteractionResult.PASS;
+		});
+
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
 			DetainTracker.clearOnLogout(handler.getPlayer().getUUID());
 		});

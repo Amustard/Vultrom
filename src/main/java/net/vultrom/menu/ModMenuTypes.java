@@ -10,6 +10,7 @@ import net.vultrom.Vultrom;
 
 public final class ModMenuTypes {
 	public static final MenuType<GuardPostMenu> GUARD_POST = register("guard_post", GuardPostMenu::new);
+	public static final MenuType<TraderDeskMenu> TRADER_DESK = register("trader_desk", TraderDeskMenu::new);
 
 	private ModMenuTypes() {
 	}

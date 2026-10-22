@@ -33,7 +33,7 @@ public class Vultrom implements ModInitializer {
 		ModNetworking.registerPayloads();
 		ModNetworking.registerServerReceivers();
 		VultromEvents.register();
-		LOGGER.info("Vultrom initialized — Security Guards + Camera 0.2.0");
+		LOGGER.info("Vultrom initialized — Guards + Camera + Trader Desk 0.3.0");
 	}
 
 	public static Identifier id(String path) {

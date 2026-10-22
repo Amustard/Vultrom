@@ -17,6 +17,7 @@ import net.minecraft.world.level.material.MapColor;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 
 import net.vultrom.block.custom.GuardPostBlock;
+import net.vultrom.block.custom.TraderDeskBlock;
 
 public final class ModBlocks {
 	public static final Block GUARD_POST = register(
@@ -27,6 +28,15 @@ public final class ModBlocks {
 					.strength(2.5f)
 					.sound(SoundType.WOOD)
 					.requiresCorrectToolForDrops()
+	);
+
+	public static final Block TRADER_DESK = register(
+			ModBlockItemIds.TRADER_DESK,
+			TraderDeskBlock::new,
+			BlockBehaviour.Properties.of()
+					.mapColor(MapColor.WOOD)
+					.strength(2.5f)
+					.sound(SoundType.WOOD)
 	);
 
 	private ModBlocks() {
@@ -47,6 +57,7 @@ public final class ModBlocks {
 	public static void initialize() {
 		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS).register(tab -> {
 			tab.accept(ModBlocks.GUARD_POST.asItem());
+			tab.accept(ModBlocks.TRADER_DESK.asItem());
 		});
 	}
 }

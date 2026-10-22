@@ -2,13 +2,23 @@
 
 Fabric mod for Mason’s **Vultrom** Minecraft server (Minecraft **26.3**).
 
-## Feature #1 — Security Guards
+## Features
 
+### Security Guards
 - Place a **Guard Post** (unmanned — no auto-spawn)
 - Right-click the post to open a villager-like desk UI: Hire / duty / release / dismiss
 - Hired guards use the vanilla villager model with a custom security uniform texture
 - Per-post tone, patrol distance, area radius, and capture toggle
 - Warn → search/confiscate → attack → MVP detain (hold at post)
+
+### Camera
+- Take photos into a Photo item; sneak with a writable book to browse an album
+
+### Trader Desk + player market
+- Place a **Trader Desk** (Functional Blocks creative tab)
+- Right-click → vanilla merchant UI with unique catalog trades + player listings
+- Sneak + right-click → listing board (list items, set emerald price, claim payouts, bind a villager)
+- Bound villagers open the same shop when right-clicked
 
 ## Build
 
@@ -19,7 +29,7 @@ export JAVA_HOME=/path/to/jdk-25
 ./gradlew build
 ```
 
-Output jar: `build/libs/vultrom-0.1.1.jar`
+Output jar: `build/libs/vultrom-0.3.0.jar` (also under `dist/`)
 
 ## Custom guard sounds
 

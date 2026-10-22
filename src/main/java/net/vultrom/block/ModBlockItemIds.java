@@ -7,6 +7,7 @@ import net.vultrom.Vultrom;
 
 public final class ModBlockItemIds {
 	public static final BlockItemId GUARD_POST = create("guard_post");
+	public static final BlockItemId TRADER_DESK = create("trader_desk");
 
 	private ModBlockItemIds() {
 	}

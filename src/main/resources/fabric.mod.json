@@ -3,7 +3,7 @@
 	"id": "vultrom",
 	"version": "${version}",
 	"name": "Vultrom",
-	"description": "Server utility mod for the Vultrom Minecraft server. Feature #1: Security Guards.",
+	"description": "Server utility mod for the Vultrom Minecraft server — Security Guards, Camera, and Trader Desk market.",
 	"authors": [
 		"Mason Buntin"
 	],

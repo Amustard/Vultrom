@@ -16,6 +16,7 @@ import net.vultrom.client.render.SecurityGuardRenderer;
 import net.vultrom.client.screen.GuardPostScreen;
 import net.vultrom.client.screen.PhotoAlbumScreen;
 import net.vultrom.client.screen.PhotoViewScreen;
+import net.vultrom.client.screen.TraderDeskScreen;
 import net.vultrom.component.BookPhotos;
 import net.vultrom.component.ModComponents;
 import net.vultrom.component.PhotoData;
@@ -28,6 +29,7 @@ public class VultromClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		MenuScreens.register(ModMenuTypes.GUARD_POST, GuardPostScreen::new);
+		MenuScreens.register(ModMenuTypes.TRADER_DESK, TraderDeskScreen::new);
 		EntityRenderers.register(ModEntityTypes.SECURITY_GUARD, SecurityGuardRenderer::new);
 		ClientPhotoCapture.register();
 

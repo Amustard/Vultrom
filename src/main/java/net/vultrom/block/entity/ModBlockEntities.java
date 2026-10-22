@@ -12,10 +12,14 @@ import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityT
 import net.vultrom.Vultrom;
 import net.vultrom.block.ModBlocks;
 import net.vultrom.block.entity.custom.GuardPostBlockEntity;
+import net.vultrom.block.entity.custom.TraderDeskBlockEntity;
 
 public final class ModBlockEntities {
 	public static final BlockEntityType<GuardPostBlockEntity> GUARD_POST =
 			register("guard_post", GuardPostBlockEntity::new, ModBlocks.GUARD_POST);
+
+	public static final BlockEntityType<TraderDeskBlockEntity> TRADER_DESK =
+			register("trader_desk", TraderDeskBlockEntity::new, ModBlocks.TRADER_DESK);
 
 	private ModBlockEntities() {
 	}

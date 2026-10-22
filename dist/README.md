@@ -8,12 +8,13 @@ Download a `vultrom-*.jar` from this folder and put it in your Fabric `mods` fol
 
 | Version | File | Notes |
 |--------|------|--------|
-| **0.2.0** | [`vultrom-0.2.0.jar`](./vultrom-0.2.0.jar) | **Current** — camera rehaul + escort lead + guards |
+| **0.3.0** | [`vultrom-0.3.0.jar`](./vultrom-0.3.0.jar) | **Current** — Trader Desk + unique trades + player market |
 
 ## Older builds
 
 | Version | File |
 |--------|------|
+| 0.2.0 | [`vultrom-0.2.0.jar`](./vultrom-0.2.0.jar) |
 | 0.1.7 | [`vultrom-0.1.7.jar`](./vultrom-0.1.7.jar) |
 | 0.1.6 | [`vultrom-0.1.6.jar`](./vultrom-0.1.6.jar) |
 | 0.1.5 | [`vultrom-0.1.5.jar`](./vultrom-0.1.5.jar) |
@@ -22,5 +23,3 @@ Download a `vultrom-*.jar` from this folder and put it in your Fabric `mods` fol
 | 0.1.2 | [`vultrom-0.1.2.jar`](./vultrom-0.1.2.jar) |
 | 0.1.1 | [`vultrom-0.1.1.jar`](./vultrom-0.1.1.jar) |
 | 0.1.0 | [`vultrom-0.1.0.jar`](./vultrom-0.1.0.jar) |
-
-Also on the [v0.2.0 Release](https://github.com/Amustard/Vultrom/releases/tag/v0.2.0).
