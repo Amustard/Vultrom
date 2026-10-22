@@ -1,10 +1,26 @@
-# Playable jar
+# Playable jars
 
-Download **`vultrom-0.2.0.jar`** from this folder and put it in your Fabric `mods` folder.
+Download a `vultrom-*.jar` from this folder and put it in your Fabric `mods` folder.
 
-**Needs:**
-- Minecraft **26.3**
-- Fabric Loader
-- Fabric API for Minecraft 26.3 (`0.163.0+26.3` or compatible)
+**Needs:** Minecraft **26.3**, Fabric Loader, and Fabric API for 26.3 (`0.163.0+26.3` or compatible).
 
-Also available from the [GitHub Release](https://github.com/Amustard/Vultrom/releases/tag/v0.2.0).
+## Current (use this)
+
+| Version | File | Notes |
+|--------|------|--------|
+| **0.2.0** | [`vultrom-0.2.0.jar`](./vultrom-0.2.0.jar) | **Current** — camera rehaul + escort lead + guards |
+
+## Older builds
+
+| Version | File |
+|--------|------|
+| 0.1.7 | [`vultrom-0.1.7.jar`](./vultrom-0.1.7.jar) |
+| 0.1.6 | [`vultrom-0.1.6.jar`](./vultrom-0.1.6.jar) |
+| 0.1.5 | [`vultrom-0.1.5.jar`](./vultrom-0.1.5.jar) |
+| 0.1.4 | [`vultrom-0.1.4.jar`](./vultrom-0.1.4.jar) |
+| 0.1.3 | [`vultrom-0.1.3.jar`](./vultrom-0.1.3.jar) |
+| 0.1.2 | [`vultrom-0.1.2.jar`](./vultrom-0.1.2.jar) |
+| 0.1.1 | [`vultrom-0.1.1.jar`](./vultrom-0.1.1.jar) |
+| 0.1.0 | [`vultrom-0.1.0.jar`](./vultrom-0.1.0.jar) |
+
+Also on the [v0.2.0 Release](https://github.com/Amustard/Vultrom/releases/tag/v0.2.0).
