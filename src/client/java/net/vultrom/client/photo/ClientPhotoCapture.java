@@ -3,48 +3,53 @@ package net.vultrom.client.photo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.Component;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
 import net.vultrom.Vultrom;
 import net.vultrom.component.PhotoData;
 import net.vultrom.network.SubmitPhotoPayload;
 
 /**
- * Captures the real game view after the level finishes rendering.
- * Immediate capture on packet receipt hits a cleared/sky-colored buffer (blue screen).
+ * Captures the last fully presented frame — same window as vanilla F2.
+ * <p>
+ * Capturing during {@code LevelRenderEvents.END_MAIN} hit an intermediate /
+ * tiny averaged buffer, so photos became a flat wash of whatever you were
+ * looking at (sky → blue, dirt → green).
  */
 public final class ClientPhotoCapture {
 	private static final int PHOTO_W = 160;
 	private static final int PHOTO_H = 90;
-	private static final int MAX_RETRIES = 8;
 
 	private static boolean pending;
 	private static boolean inFlight;
-	private static int retries;
 
 	private ClientPhotoCapture() {
 	}
 
 	public static void register() {
-		LevelRenderEvents.END_MAIN.register(context -> tryCaptureAfterLevel());
+		// Tick runs before renderFrame in runTick — mainRenderTarget still holds
+		// the previous completed frame (world + HUD), matching F2 timing.
+		ClientTickEvents.END_CLIENT_TICK.register(client -> tryCaptureBetweenFrames());
 	}
 
-	/** Queue a capture for the next fully rendered level frame. */
+	/** Queue a capture on the next end-of-tick (previous finished frame). */
 	public static void requestCapture() {
 		pending = true;
 		inFlight = false;
-		retries = 0;
 	}
 
-	private static void tryCaptureAfterLevel() {
+	private static void tryCaptureBetweenFrames() {
 		if (!pending || inFlight) {
 			return;
 		}
@@ -53,14 +58,27 @@ public final class ClientPhotoCapture {
 			pending = false;
 			return;
 		}
+		RenderTarget target = mc.gameRenderer.mainRenderTarget();
+		if (target == null || target.width < 16 || target.height < 16 || target.getColorTexture() == null) {
+			// Frame not ready yet — keep pending for a later tick.
+			return;
+		}
+
 		inFlight = true;
+		int downscale = chooseDownscale(target.width, target.height);
 		try {
-			Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
+			Screenshot.takeScreenshot(target, downscale, image -> {
 				try {
-					if (isNearlyUniform(image) && retries < MAX_RETRIES) {
-						retries++;
+					int w = image.getWidth();
+					int h = image.getHeight();
+					int unique = countUniqueColors(image, 64);
+					Vultrom.LOGGER.info(
+							"Camera capture {}x{} (fb {}x{}, downscale {}, unique~{})",
+							w, h, target.width, target.height, downscale, unique
+					);
+					if (w < 8 || h < 8 || unique < 4) {
+						// Still a flat wash / tiny buffer — retry next tick.
 						inFlight = false;
-						// keep pending — try again on a later frame
 						return;
 					}
 					byte[] png = encodeDownscaledPng(image);
@@ -98,6 +116,32 @@ public final class ClientPhotoCapture {
 		}
 	}
 
+	/** Largest downscale that evenly divides both axes (Screenshot requirement). */
+	private static int chooseDownscale(int width, int height) {
+		int maxBySize = Math.max(1, Math.min(width / PHOTO_W, height / PHOTO_H));
+		for (int d = maxBySize; d >= 1; d--) {
+			if (width % d == 0 && height % d == 0) {
+				return d;
+			}
+		}
+		return 1;
+	}
+
+	private static int countUniqueColors(NativeImage image, int budget) {
+		int w = image.getWidth();
+		int h = image.getHeight();
+		int[] pixels = image.getPixelsABGR();
+		Set<Integer> seen = new HashSet<>();
+		int stepY = Math.max(1, h / 16);
+		int stepX = Math.max(1, w / 16);
+		for (int y = 0; y < h && seen.size() < budget; y += stepY) {
+			for (int x = 0; x < w && seen.size() < budget; x += stepX) {
+				seen.add(pixels[y * w + x] & 0x00FFFFFF);
+			}
+		}
+		return seen.size();
+	}
+
 	private static void finishSubmit(Minecraft mc, byte[] png) {
 		if (mc.player == null) {
 			return;
@@ -117,49 +161,18 @@ public final class ClientPhotoCapture {
 				&& png[3] == 0x47;
 	}
 
-	/**
-	 * Cleared framebuffers are an exact flat clear color. Real views (even sky) have
-	 * gradients / noise — only reject near-zero range samples.
-	 */
-	private static boolean isNearlyUniform(NativeImage image) {
-		int w = image.getWidth();
-		int h = image.getHeight();
-		if (w < 4 || h < 4) {
-			return true;
-		}
-		int[] pixels = image.getPixelsABGR();
-		int minR = 255;
-		int minG = 255;
-		int minB = 255;
-		int maxR = 0;
-		int maxG = 0;
-		int maxB = 0;
-		int stepY = Math.max(1, h / 10);
-		int stepX = Math.max(1, w / 10);
-		for (int y = 0; y < h; y += stepY) {
-			for (int x = 0; x < w; x += stepX) {
-				int p = pixels[y * w + x];
-				int r = (p >> 16) & 0xFF;
-				int g = (p >> 8) & 0xFF;
-				int b = p & 0xFF;
-				minR = Math.min(minR, r);
-				minG = Math.min(minG, g);
-				minB = Math.min(minB, b);
-				maxR = Math.max(maxR, r);
-				maxG = Math.max(maxG, g);
-				maxB = Math.max(maxB, b);
-			}
-		}
-		int range = (maxR - minR) + (maxG - minG) + (maxB - minB);
-		return range < 6;
-	}
-
 	private static byte[] encodeDownscaledPng(NativeImage source) throws IOException {
 		int srcW = source.getWidth();
 		int srcH = source.getHeight();
 		if (srcW <= 0 || srcH <= 0) {
 			throw new IOException("empty framebuffer");
 		}
+
+		// Already small enough from GPU downscale — just crop to postcard aspect.
+		if (srcW <= PHOTO_W * 2 && srcH <= PHOTO_H * 2) {
+			return writePngBytes(source);
+		}
+
 		float targetAspect = PHOTO_W / (float) PHOTO_H;
 		float srcAspect = srcW / (float) srcH;
 		int cropW;
@@ -174,17 +187,15 @@ public final class ClientPhotoCapture {
 		int x0 = Math.max(0, (srcW - cropW) / 2);
 		int y0 = Math.max(0, (srcH - cropH) / 2);
 
-		// Manual downsample with matching format — resizeSubRectTo is format-strict and
-		// was a failure path that previously fell back to a solid blue placeholder.
 		try (NativeImage small = new NativeImage(source.format(), PHOTO_W, PHOTO_H, false)) {
 			int[] src = source.getPixelsABGR();
 			for (int y = 0; y < PHOTO_H; y++) {
-				int sy = y0 + y * cropH / PHOTO_H;
+				int sy = y0 + (int) ((y + 0.5f) * cropH / PHOTO_H);
 				if (sy >= srcH) {
 					sy = srcH - 1;
 				}
 				for (int x = 0; x < PHOTO_W; x++) {
-					int sx = x0 + x * cropW / PHOTO_W;
+					int sx = x0 + (int) ((x + 0.5f) * cropW / PHOTO_W);
 					if (sx >= srcW) {
 						sx = srcW - 1;
 					}
@@ -193,15 +204,7 @@ public final class ClientPhotoCapture {
 			}
 			byte[] bytes = writePngBytes(small);
 			if (bytes.length > PhotoData.MAX_BYTES) {
-				try (NativeImage tiny = new NativeImage(source.format(), 96, 54, false)) {
-					int[] mid = small.getPixelsABGR();
-					for (int y = 0; y < 54; y++) {
-						for (int x = 0; x < 96; x++) {
-							tiny.setPixelABGR(x, y, mid[(y * PHOTO_H / 54) * PHOTO_W + (x * PHOTO_W / 96)]);
-						}
-					}
-					bytes = writePngBytes(tiny);
-				}
+				return writePngBytes(source); // fall back to GPU-downscaled full capture
 			}
 			return bytes;
 		}

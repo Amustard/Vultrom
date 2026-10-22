@@ -32,7 +32,7 @@ public class VultromClient implements ClientModInitializer {
 		ClientPhotoCapture.register();
 
 		ClientPlayNetworking.registerGlobalReceiver(RequestPhotoCapturePayload.TYPE, (payload, context) -> {
-			// Capture on the next finished level frame — not mid-tick (that was a blue clear color).
+			// Capture on next end-of-tick (previous finished frame) — same timing as F2.
 			context.client().execute(ClientPhotoCapture::requestCapture);
 		});
 
