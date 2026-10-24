@@ -244,7 +244,12 @@ public class TraderDeskBlockEntity extends BlockEntity implements MenuProvider {
 	@Override
 	@NonNull
 	public Component getDisplayName() {
-		return Component.translatable("block.vultrom.trader_desk");
+		// Used as the listing-board title when sneak-opened.
+		return Component.literal("Sell Board — list your items");
+	}
+
+	public Component shopTitle() {
+		return Component.literal("Trader Desk Shop");
 	}
 
 	@Nullable

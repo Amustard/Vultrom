@@ -1,14 +1,19 @@
 package net.vultrom.block;
 
+import java.util.List;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.references.BlockItemId;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -36,7 +41,12 @@ public final class ModBlocks {
 			BlockBehaviour.Properties.of()
 					.mapColor(MapColor.WOOD)
 					.strength(2.5f)
-					.sound(SoundType.WOOD)
+					.sound(SoundType.WOOD),
+			props -> props.component(DataComponents.LORE, new ItemLore(List.of(
+					Component.literal("Right-click: BUY (shop / market)"),
+					Component.literal("Sneak + right-click: SELL your items"),
+					Component.literal("Sell board: put item in slot → price → List")
+			)))
 	);
 
 	private ModBlocks() {
@@ -48,8 +58,18 @@ public final class ModBlocks {
 	}
 
 	private static Block register(BlockItemId id, Function<BlockBehaviour.Properties, Block> blockFactory, BlockBehaviour.Properties properties) {
+		return register(id, blockFactory, properties, p -> p);
+	}
+
+	private static Block register(
+			BlockItemId id,
+			Function<BlockBehaviour.Properties, Block> blockFactory,
+			BlockBehaviour.Properties properties,
+			UnaryOperator<Item.Properties> itemProps
+	) {
 		Block block = register(id.block(), blockFactory, properties);
-		BlockItem blockItem = new BlockItem(block, new Item.Properties().useBlockDescriptionPrefix().setId(id.item()));
+		Item.Properties props = itemProps.apply(new Item.Properties().useBlockDescriptionPrefix().setId(id.item()));
+		BlockItem blockItem = new BlockItem(block, props);
 		Registry.register(BuiltInRegistries.ITEM, id.item(), blockItem);
 		return block;
 	}

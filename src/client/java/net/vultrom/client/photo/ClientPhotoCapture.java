@@ -3,9 +3,13 @@ package net.vultrom.client.photo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.renderpearl.api.GpuFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -18,41 +22,47 @@ import net.vultrom.component.PhotoData;
 import net.vultrom.network.SubmitPhotoPayload;
 
 /**
- * Camera capture rehaul (0.2.0):
- * <ul>
- *   <li>Triggered from a GameRenderer mixin at the same point as vanilla F2 / world screenshots
- *       (right after {@code tryTakeScreenshotIfNeeded()}).</li>
- *   <li>Uses {@link Screenshot#takeScreenshot} and waits for the native GPU callback.</li>
- *   <li>Verifies PNG size + spatial luminance variance before packaging a Photo.</li>
- *   <li>Writes {@code vultrom_last_capture.png} in the game directory for eyeball checks.</li>
- * </ul>
+ * Camera capture (0.3.1):
+ * <p>
+ * Root cause of solid-color photos: {@link Screenshot#takeScreenshot} does an async
+ * GPU copy of the <em>live</em> main target. The rest of the same frame still writes/clears
+ * that target (post-FX / GUI), so the readback often landed on a flat clear color.
+ * <p>
+ * Fix: immediately {@link RenderTarget#copyColorFrom} into a private staging target that
+ * nothing else touches, then screenshot <em>that</em>. Reject frames that fail spatial
+ * variance / unique-color checks. Always write {@code vultrom_last_capture.png}.
  */
 public final class ClientPhotoCapture {
 	private static final int PHOTO_W = 160;
 	private static final int PHOTO_H = 90;
-	/** Flat washes / 1×1 averages sit near 0; real scenes are much higher. */
-	private static final double MIN_LUMINANCE_VARIANCE = 40.0;
+	private static final double MIN_LUMINANCE_VARIANCE = 80.0;
+	private static final int MIN_UNIQUE_COLORS = 48;
+	private static final int MIN_CHANNEL_RANGE = 24;
 	private static final int MIN_WIDTH = 64;
 	private static final int MIN_HEIGHT = 36;
+	private static final int MAX_RETRIES = 8;
 
 	private static volatile boolean pending;
 	private static volatile boolean inFlight;
+	private static volatile int retriesLeft;
+
+	private static TextureTarget staging;
 
 	private ClientPhotoCapture() {
 	}
 
-	/** No tick/render-event registration — mixin drives capture timing. */
 	public static void register() {
-		// intentionally empty
+		// mixin drives timing
 	}
 
 	public static void requestCapture() {
 		pending = true;
+		retriesLeft = MAX_RETRIES;
 	}
 
 	/**
-	 * Called from {@link net.vultrom.mixin.GameRendererMixin} on the render thread
-	 * at the proven vanilla screenshot moment.
+	 * Called from {@link net.vultrom.mixin.GameRendererMixin} on the render thread,
+	 * immediately after vanilla's world-screenshot moment (post-{@code renderLevel}).
 	 */
 	public static void captureAtVanillaScreenshotMoment() {
 		if (!pending || inFlight) {
@@ -63,18 +73,27 @@ public final class ClientPhotoCapture {
 			pending = false;
 			return;
 		}
-		RenderTarget target = mc.gameRenderer.mainRenderTarget();
-		if (target == null || target.getColorTexture() == null || target.width < MIN_WIDTH || target.height < MIN_HEIGHT) {
-			return; // keep pending; try next frame
+		RenderTarget main = mc.gameRenderer.mainRenderTarget();
+		if (main == null || main.getColorTexture() == null || main.width < MIN_WIDTH || main.height < MIN_HEIGHT) {
+			return;
+		}
+
+		RenderTarget snapshot;
+		try {
+			snapshot = ensureStaging(main.width, main.height);
+			snapshot.copyColorFrom(main);
+		} catch (Exception e) {
+			Vultrom.LOGGER.error("Camera staging copy failed", e);
+			failOrRetry(mc, "Camera staging failed — try again.");
+			return;
 		}
 
 		inFlight = true;
 		pending = false;
-		int downscale = 1; // full framebuffer — downsample ourselves after verify
 		try {
-			Screenshot.takeScreenshot(target, downscale, image -> {
+			Screenshot.takeScreenshot(snapshot, 1, image -> {
 				try {
-					handleCapturedImage(mc, image, target.width, target.height);
+					handleCapturedImage(mc, image, snapshot.width, snapshot.height);
 				} catch (Exception e) {
 					Vultrom.LOGGER.error("Camera capture failed", e);
 					mc.execute(() -> {
@@ -90,48 +109,84 @@ public final class ClientPhotoCapture {
 		} catch (Exception e) {
 			Vultrom.LOGGER.error("Camera Screenshot.takeScreenshot failed", e);
 			inFlight = false;
-			pending = true; // retry next frame
+			failOrRetry(mc, "Shutter misfire — try again.");
 		}
+	}
+
+	private static RenderTarget ensureStaging(int width, int height) {
+		if (staging == null || staging.width != width || staging.height != height) {
+			if (staging != null) {
+				staging.destroyBuffers();
+			}
+			staging = new TextureTarget(
+					"vultrom_photo_staging",
+					width,
+					height,
+					GpuFormat.RGBA8_UNORM,
+					GpuFormat.D32_FLOAT
+			);
+		}
+		return staging;
+	}
+
+	private static void failOrRetry(Minecraft mc, String message) {
+		if (retriesLeft > 0) {
+			retriesLeft--;
+			pending = true;
+			return;
+		}
+		pending = false;
+		mc.execute(() -> {
+			if (mc.player != null) {
+				mc.player.sendOverlayMessage(Component.literal(message));
+			}
+		});
 	}
 
 	private static void handleCapturedImage(Minecraft mc, NativeImage image, int fbW, int fbH) throws IOException {
 		int w = image.getWidth();
 		int h = image.getHeight();
-		double variance = luminanceVariance(image);
-		Vultrom.LOGGER.info("Camera frame {}x{} (fb {}x{}), luminanceVar={}", w, h, fbW, fbH, variance);
+		FrameStats stats = analyze(image);
+		Vultrom.LOGGER.info(
+				"Camera frame {}x{} (fb {}x{}), var={}, unique={}, range={}",
+				w, h, fbW, fbH, stats.variance, stats.uniqueColors, stats.channelRange
+		);
 
-		if (w < MIN_WIDTH || h < MIN_HEIGHT || variance < MIN_LUMINANCE_VARIANCE) {
-			Vultrom.LOGGER.warn("Rejected flat/tiny camera frame (var={})", variance);
-			mc.execute(() -> {
-				if (mc.player != null) {
-					mc.player.sendOverlayMessage(Component.literal("Shutter misfire — try again."));
-				}
-			});
-			pending = true; // allow an immediate retry on next good frame
-			return;
-		}
-
-		// Eyeball artifact in .minecraft for Mason
 		Path debugPath = mc.gameDirectory.toPath().resolve("vultrom_last_capture.png");
 		image.writeToFile(debugPath);
 
+		boolean ok = w >= MIN_WIDTH && h >= MIN_HEIGHT
+				&& stats.variance >= MIN_LUMINANCE_VARIANCE
+				&& stats.uniqueColors >= MIN_UNIQUE_COLORS
+				&& stats.channelRange >= MIN_CHANNEL_RANGE;
+
+		if (!ok) {
+			Path rejectPath = mc.gameDirectory.toPath().resolve("vultrom_last_reject.png");
+			Files.copy(debugPath, rejectPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			Vultrom.LOGGER.warn(
+					"Rejected flat camera frame (var={}, unique={}, range={}) — wrote {}",
+					stats.variance, stats.uniqueColors, stats.channelRange, rejectPath
+			);
+			failOrRetry(mc, "Shutter misfire (blank frame) — try again.");
+			return;
+		}
+
 		byte[] png = encodePostcard(image);
-		// Re-verify encoded bytes
 		try (NativeImage check = NativeImage.read(png)) {
-			double checkVar = luminanceVariance(check);
-			if (check.getWidth() < 16 || check.getHeight() < 16 || checkVar < MIN_LUMINANCE_VARIANCE * 0.5) {
-				Vultrom.LOGGER.warn("Encoded photo failed verify ({}x{}, var={})", check.getWidth(), check.getHeight(), checkVar);
-				mc.execute(() -> {
-					if (mc.player != null) {
-						mc.player.sendOverlayMessage(Component.literal("Photo encode looked empty — try again."));
-					}
-				});
+			FrameStats checkStats = analyze(check);
+			if (check.getWidth() < 16 || check.getHeight() < 16
+					|| checkStats.variance < MIN_LUMINANCE_VARIANCE * 0.4
+					|| checkStats.uniqueColors < MIN_UNIQUE_COLORS / 2) {
+				Vultrom.LOGGER.warn(
+						"Encoded photo failed verify ({}x{}, var={}, unique={})",
+						check.getWidth(), check.getHeight(), checkStats.variance, checkStats.uniqueColors
+				);
+				failOrRetry(mc, "Photo encode looked empty — try again.");
 				return;
 			}
 		}
 
 		if (png.length > PhotoData.MAX_BYTES) {
-			// Emergency shrink
 			png = encodeTiny(image);
 		}
 		if (png.length > PhotoData.MAX_BYTES || !looksLikePng(png)) {
@@ -143,33 +198,34 @@ public final class ClientPhotoCapture {
 			return;
 		}
 
+		retriesLeft = 0;
 		byte[] toSend = png;
 		mc.execute(() -> {
 			if (mc.player != null) {
 				ClientPlayNetworking.send(new SubmitPhotoPayload(toSend));
-				mc.player.sendOverlayMessage(Component.literal("Shutter!"));
+				mc.player.sendOverlayMessage(Component.literal("Shutter! Check vultrom_last_capture.png if unsure."));
 			}
 		});
 	}
 
-	private static double luminanceVariance(NativeImage image) {
+	private record FrameStats(double variance, int uniqueColors, int channelRange) {
+	}
+
+	private static FrameStats analyze(NativeImage image) {
 		int w = image.getWidth();
 		int h = image.getHeight();
 		int[] pixels = image.getPixelsABGR();
-		int stepY = Math.max(1, h / 24);
-		int stepX = Math.max(1, w / 24);
+		int stepY = Math.max(1, h / 32);
+		int stepX = Math.max(1, w / 32);
 		double sum = 0;
 		double sumSq = 0;
 		int n = 0;
+		int minC = 255;
+		int maxC = 0;
+		Set<Integer> unique = new HashSet<>();
 		for (int y = 0; y < h; y += stepY) {
 			for (int x = 0; x < w; x += stepX) {
 				int p = pixels[y * w + x];
-				int r = (p) & 0xFF;         // ABGR: B in low bits? Wait - ABGR byte order
-				int g = (p >> 8) & 0xFF;
-				int b = (p >> 16) & 0xFF;
-				// NativeImage ABGR packing: bits are A B G R in memory on little-endian as int...
-				// getPixelsABGR documentation - Screenshot uses setPixelABGR with getInt from RGBA.
-				// Use relative luminance with the three channels regardless of swap:
 				int c0 = p & 0xFF;
 				int c1 = (p >> 8) & 0xFF;
 				int c2 = (p >> 16) & 0xFF;
@@ -177,13 +233,18 @@ public final class ClientPhotoCapture {
 				sum += lum;
 				sumSq += lum * lum;
 				n++;
+				minC = Math.min(minC, Math.min(c0, Math.min(c1, c2)));
+				maxC = Math.max(maxC, Math.max(c0, Math.max(c1, c2)));
+				// quantize a bit so near-solid noise doesn't inflate unique count
+				unique.add(((c2 & 0xF8) << 16) | ((c1 & 0xF8) << 8) | (c0 & 0xF8));
 			}
 		}
 		if (n < 2) {
-			return 0;
+			return new FrameStats(0, unique.size(), 0);
 		}
 		double mean = sum / n;
-		return (sumSq / n) - (mean * mean);
+		double variance = (sumSq / n) - (mean * mean);
+		return new FrameStats(variance, unique.size(), maxC - minC);
 	}
 
 	private static byte[] encodePostcard(NativeImage source) throws IOException {

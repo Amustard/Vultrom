@@ -46,7 +46,7 @@ public class DeskMerchant implements Merchant {
 	}
 
 	public void openFor(Player player) {
-		this.openTradingScreen(player, this.desk.getDisplayName(), 1);
+		this.openTradingScreen(player, this.desk.shopTitle(), 1);
 	}
 
 	@Override

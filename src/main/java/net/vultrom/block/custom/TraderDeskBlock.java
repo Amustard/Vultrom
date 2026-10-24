@@ -3,6 +3,8 @@ package net.vultrom.block.custom;
 import org.jspecify.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -42,8 +44,18 @@ public class TraderDeskBlock extends BaseEntityBlock {
 			return InteractionResult.PASS;
 		}
 		if (player.isShiftKeyDown()) {
+			if (player instanceof ServerPlayer serverPlayer) {
+				serverPlayer.sendSystemMessage(Component.literal(
+						"SELL BOARD — 1) put your item in the gray slot  2) set emerald price with +/-  3) click List item for sale. Claim pays out sold listings."
+				));
+			}
 			player.openMenu(desk);
 		} else {
+			if (player instanceof ServerPlayer serverPlayer) {
+				serverPlayer.sendSystemMessage(Component.literal(
+						"SHOP — buy unique stock + other players' listings here. To SELL your stuff: sneak + right-click this desk."
+				));
+			}
 			desk.openShop(player);
 		}
 		return InteractionResult.SUCCESS;

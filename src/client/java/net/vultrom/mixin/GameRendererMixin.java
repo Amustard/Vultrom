@@ -12,6 +12,9 @@ import net.vultrom.client.photo.ClientPhotoCapture;
 /**
  * Hook the exact moment vanilla takes world screenshots: immediately after
  * {@code renderLevel()} / {@code tryTakeScreenshotIfNeeded()}.
+ * <p>
+ * Capture code copies the main color buffer into a private staging target before
+ * the rest of this frame mutates the live target (post-FX / GUI).
  */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {

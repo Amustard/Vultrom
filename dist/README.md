@@ -8,12 +8,13 @@ Download a `vultrom-*.jar` from this folder and put it in your Fabric `mods` fol
 
 | Version | File | Notes |
 |--------|------|--------|
-| **0.3.0** | [`vultrom-0.3.0.jar`](./vultrom-0.3.0.jar) | **Current** — Trader Desk + unique trades + player market |
+| **0.3.1** | [`vultrom-0.3.1.jar`](./vultrom-0.3.1.jar) | **Current** — camera staging fix + clearer Trader Desk sell UX |
 
 ## Older builds
 
 | Version | File |
 |--------|------|
+| 0.3.0 | [`vultrom-0.3.0.jar`](./vultrom-0.3.0.jar) |
 | 0.2.0 | [`vultrom-0.2.0.jar`](./vultrom-0.2.0.jar) |
 | 0.1.7 | [`vultrom-0.1.7.jar`](./vultrom-0.1.7.jar) |
 | 0.1.6 | [`vultrom-0.1.6.jar`](./vultrom-0.1.6.jar) |
