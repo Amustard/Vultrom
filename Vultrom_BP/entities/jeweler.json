@@ -555,6 +555,12 @@
 					"into": "minecraft:villager_v2"
 				}
 			},
+			"vultrom:wander": {
+				"minecraft:behavior.random_stroll": {
+					"priority": 11,
+					"speed_multiplier": 0.6
+				}
+			},
 			"vultrom:sale_celebration": {
 				"minecraft:behavior.random_stroll": {
 					"priority": 3,
@@ -1041,7 +1047,8 @@
 								"make_and_receive_love",
 								"vultrom:jeweler",
 								"behavior_non_peasant",
-								"vultrom:jeweler_schedule"
+								"vultrom:jeweler_schedule",
+								"vultrom:wander"
 							]
 						}
 					},
@@ -1234,7 +1241,8 @@
 								"make_and_receive_love",
 								"vultrom:jeweler",
 								"behavior_non_peasant",
-								"vultrom:jeweler_schedule"
+								"vultrom:jeweler_schedule",
+								"vultrom:wander"
 							]
 						}
 					},
@@ -1382,6 +1390,11 @@
 				}
 			},
 			"vultrom:start_sale_celebration": {
+				"remove": {
+					"component_groups": [
+						"vultrom:wander"
+					]
+				},
 				"add": {
 					"component_groups": [
 						"vultrom:sale_celebration"
@@ -1391,7 +1404,15 @@
 			"vultrom:stop_sale_celebration": {
 				"remove": {
 					"component_groups": [
-						"vultrom:sale_celebration"
+						"vultrom:sale_celebration",
+						"vultrom:wander",
+						"vultrom:jeweler_schedule"
+					]
+				},
+				"add": {
+					"component_groups": [
+						"vultrom:wander",
+						"vultrom:jeweler_schedule"
 					]
 				}
 			}

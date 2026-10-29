@@ -1,0 +1,31 @@
+{
+	"format_version": "1.21.40",
+	"minecraft:block": {
+		"description": {
+			"identifier": "vultrom:ruby_ore",
+			"menu_category": {
+				"category": "nature",
+				"group": "itemGroup.name.ore"
+			}
+		},
+		"components": {
+			"minecraft:geometry": "minecraft:geometry.full_block",
+			"minecraft:material_instances": {
+				"*": {
+					"texture": "vultrom_ruby_ore",
+					"render_method": "opaque"
+				}
+			},
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 2.0
+			},
+			"minecraft:destructible_by_explosion": {
+				"explosion_resistance": 3.0
+			},
+			"minecraft:map_color": "#9E2B3A",
+			"minecraft:light_dampening": 15,
+			"minecraft:loot": "loot_tables/blocks/ruby_ore.json",
+			"tag:minecraft:diamond_tier_destructible": {}
+		}
+	}
+}

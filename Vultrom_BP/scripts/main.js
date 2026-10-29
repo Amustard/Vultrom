@@ -1,13 +1,15 @@
 /**
- * Vultrom Bedrock — Sapphire ore seeding, Fortune bonus drops, Gemstone Cutter → Jeweler
- * bind, and /function vultrom/find_sapphire (also chat: !findsapphire with Beta APIs).
+ * Vultrom Bedrock — Sapphire and Ruby ore seeding, Fortune bonus drops, Gemstone Cutter →
+ * Jeweler bind, and /function vultrom/find_sapphire + vultrom/find_ruby (also chat:
+ * !findsapphire / !findruby with Beta APIs).
  *
  * Ore uses Script API placement (no Custom Biomes / feature_rules experiment).
  * Cutter bind: Bedrock addons cannot register a true vanilla profession/POI, so
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
  * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
- * cutter while holding Raw Sapphire cuts it into Sapphire (sneak cuts the whole stack).
- * After a player sells him a gem, the Jeweler holds that gem and celebrates for ~8 seconds.
+ * cutter while holding Raw Sapphire or Raw Ruby cuts it into the gem (sneak cuts the whole
+ * stack). After a player sells him a gem, the Jeweler holds that gem and celebrates for
+ * ~8 seconds.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
@@ -19,7 +21,24 @@ const ORE = "vultrom:sapphire_ore";
 const RAW = "vultrom:raw_sapphire";
 const SAPPHIRE = "vultrom:sapphire";
 const SCRAPS = "vultrom:sapphire_scraps";
-const RAW_SAPPHIRE_PICKAXES = new Set(["minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"]);
+const RUBY_ORE = "vultrom:ruby_ore";
+const DEEPSLATE_RUBY_ORE = "vultrom:deepslate_ruby_ore";
+const RAW_RUBY = "vultrom:raw_ruby";
+const RUBY = "vultrom:ruby";
+const RUBY_SCRAPS = "vultrom:ruby_scraps";
+const RAW_GEM_PICKAXES = new Set(["minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"]);
+/** Ore block → its raw gem (diamond/netherite pickaxe) and its scraps (anything else). */
+const ORE_DROPS = new Map([
+	[ORE, { raw: RAW, scraps: SCRAPS }],
+	[RUBY_ORE, { raw: RAW_RUBY, scraps: RUBY_SCRAPS }],
+	[DEEPSLATE_RUBY_ORE, { raw: RAW_RUBY, scraps: RUBY_SCRAPS }]
+]);
+/** Gemstone Cutter recipes: raw gem → cut gem, 1:1. */
+const CUTS = new Map([
+	[RAW, { gem: SAPPHIRE, rawName: "Raw Sapphire", gemName: "§3Sapphire" }],
+	[RAW_RUBY, { gem: RUBY, rawName: "Raw Ruby", gemName: "§cRuby" }]
+]);
+const DEEPSLATE_HOSTS = new Set(["minecraft:deepslate", "minecraft:tuff"]);
 const REPLACEABLE = new Set([
 	"minecraft:stone",
 	"minecraft:deepslate",
@@ -37,17 +56,44 @@ const ORE_PER_VEIN = 3;
 const CHUNK_RADIUS = 4;
 const SEED_INTERVAL_TICKS = 20;
 const OVERWORLD = "minecraft:overworld";
-const FIND_TAG = "vultrom_find_sapphire";
 const FIND_CHUNK_RADIUS = 12;
 const FIND_SCAN_RADIUS = 8;
-const FIND_CHAT = "!findsapphire";
+
+/**
+ * Script-seeded gem ores. Each gem walks its own deterministic vein RNG (`salt`), so adding
+ * ruby left every sapphire vein where it was. `place` picks the ore for a host block id, or
+ * undefined to leave it alone.
+ */
+const GEMS = [
+	{
+		label: "Sapphire",
+		color: "§b",
+		salt: 0x5a7f31,
+		ores: new Set([ORE]),
+		place: (host) => (REPLACEABLE.has(host) ? ORE : undefined),
+		findTag: "vultrom_find_sapphire",
+		chat: new Set(["!findsapphire", "/findsapphire"])
+	},
+	{
+		label: "Ruby",
+		color: "§c",
+		salt: 0x3c6ef3,
+		ores: new Set([RUBY_ORE, DEEPSLATE_RUBY_ORE]),
+		place: (host) => (!REPLACEABLE.has(host) ? undefined : DEEPSLATE_HOSTS.has(host) ? DEEPSLATE_RUBY_ORE : RUBY_ORE),
+		findTag: "vultrom_find_ruby",
+		chat: new Set(["!findruby", "/findruby"])
+	}
+];
 
 /** @type {Set<string>} */
 const seededChunks = new Set();
 let placeErrorLogged = false;
 
-function oreRegistered() {
-	return BlockTypes.get(ORE) !== undefined;
+function gemRegistered(gem) {
+	for (const ore of gem.ores) {
+		if (BlockTypes.get(ore) === undefined) return false;
+	}
+	return true;
 }
 
 function nearestVillager(dimension, location) {
@@ -85,7 +131,7 @@ function confirmJeweler(player) {
 	});
 }
 
-const CUTTER_HINT = "§bGemstone Cutter§r: right-click with §3Raw Sapphire§r to cut, sneak to cut all.";
+const CUTTER_HINT = "§bGemstone Cutter§r: right-click with §3Raw Sapphire§r or §cRaw Ruby§r to cut, sneak to cut all.";
 
 /** Converts the nearest villager into this cutter's Jeweler; returns false if nobody was converted. */
 function bindJeweler(player, block) {
@@ -149,13 +195,14 @@ function bindJeweler(player, block) {
 	return true;
 }
 
-/** Cuts the Raw Sapphire in the player's selected slot: one, or the whole stack. */
-function cutRawSapphire(player, wholeStack) {
+/** Cuts the raw gem in the player's selected slot: one, or the whole stack. */
+function cutRawGem(player, wholeStack) {
 	const container = player.getComponent("minecraft:inventory")?.container;
 	if (!container) return;
 	const slot = player.selectedSlotIndex;
 	const held = container.getItem(slot);
-	if (!held || held.typeId !== RAW) return;
+	const cut = held && CUTS.get(held.typeId);
+	if (!cut) return;
 
 	const count = wholeStack ? held.amount : 1;
 	if (held.amount > count) {
@@ -164,7 +211,7 @@ function cutRawSapphire(player, wholeStack) {
 	} else {
 		container.setItem(slot, undefined);
 	}
-	const leftover = container.addItem(new ItemStack(SAPPHIRE, count));
+	const leftover = container.addItem(new ItemStack(cut.gem, count));
 	if (leftover) player.dimension.spawnItem(leftover, player.location);
 
 	try {
@@ -173,7 +220,7 @@ function cutRawSapphire(player, wholeStack) {
 		/* cosmetic only */
 	}
 	player.onScreenDisplay?.setActionBar(
-		`§bGemstone Cutter§r: cut ${count} Raw Sapphire into §3${count} Sapphire§r.`
+		`§bGemstone Cutter§r: cut ${count} ${cut.rawName} into ${cut.gemName} ×${count}§r.`
 	);
 }
 
@@ -183,7 +230,7 @@ function cutRawSapphire(player, wholeStack) {
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 	const { block, player } = event;
 	if (block?.typeId !== CUTTER || !player) return;
-	const holdingRaw = event.itemStack?.typeId === RAW;
+	const holdingRaw = CUTS.has(event.itemStack?.typeId);
 	const sneaking = player.isSneaking;
 	// Behave like a workstation: a plain click never places or uses the held item on the
 	// cutter; sneak-clicking with a block still places it against the cutter.
@@ -196,7 +243,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 		try {
 			if (!player.isValid() || !block.isValid() || block.typeId !== CUTTER) return;
 			if (holdingRaw) {
-				cutRawSapphire(player, sneaking);
+				cutRawGem(player, sneaking);
 			} else if (sneaking) {
 				player.onScreenDisplay?.setActionBar(CUTTER_HINT);
 			} else {
@@ -216,7 +263,6 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 // raises the gem).
 const HELD_GEM = "vultrom:held_gem";
 const CELEBRATING = "vultrom:celebrating";
-const RUBY = "vultrom:ruby";
 const EMERALD = "minecraft:emerald";
 const NO_GEM = 0;
 const GEM_SAPPHIRE = 1;
@@ -369,15 +415,30 @@ function startCelebration(jeweler, jewelerId, gem) {
 	}
 }
 
-function stopCelebration(jeweler, jewelerId) {
-	celebrations.delete(jewelerId);
-	if (!jeweler.isValid()) return;
+/** Jewelers whose AI was reset since the script (re)loaded, by id. */
+const aiReset = new Set();
+
+/**
+ * Puts the Jeweler back to normal villager AI. Removing a component group deletes every
+ * component it defines, base ones included, so vultrom:stop_sale_celebration re-adds the
+ * normal wander goal and restarts the schedule (which re-adds the work/gather/home/bed group).
+ */
+function resetJeweler(jeweler, jewelerId) {
 	try {
 		jeweler.triggerEvent("vultrom:stop_sale_celebration");
 	} catch (err) {
-		console.warn("[vultrom] jeweler celebration stop failed:", err);
+		console.warn("[vultrom] jeweler AI reset failed:", err);
+		return;
 	}
+	if (aiReset.size > 4096) aiReset.clear();
+	aiReset.add(jewelerId);
 	setFlag(jeweler, CELEBRATING, false);
+}
+
+function stopCelebration(jeweler, jewelerId) {
+	celebrations.delete(jewelerId);
+	if (!jeweler.isValid()) return;
+	resetJeweler(jeweler, jewelerId);
 	refreshHold(jeweler, jewelerId);
 }
 
@@ -466,8 +527,28 @@ system.runInterval(() => {
 	for (const [jewelerId, party] of celebrations) tickCelebration(jewelerId, party, now);
 }, 2);
 
-// A world closed mid-sale or mid-outburst saves the properties (and the celebration group);
-// reset any Jeweler the script is not tracking.
+// A world closed mid-sale or mid-outburst saves the properties (and the celebration group),
+// and v0.1.6–0.1.7 left Jewelers without their wander goal after an outburst. So every
+// Jeweler gets one AI reset after a (re)load, plus another whenever CELEBRATING is stale.
+function resetLoadedJeweler(entity) {
+	if (entity?.typeId !== JEWELER) return;
+	system.run(() => {
+		try {
+			if (!entity.isValid() || celebrations.has(entity.id)) return;
+			resetJeweler(entity, entity.id);
+			setFlag(entity, HELD_GEM, NO_GEM);
+		} catch (err) {
+			console.warn("[vultrom] jeweler load reset failed:", err);
+		}
+	});
+}
+
+try {
+	world.afterEvents.entityLoad.subscribe((event) => resetLoadedJeweler(event.entity));
+} catch (err) {
+	console.warn("[vultrom] entityLoad unavailable, relying on the Jeweler sweep:", err);
+}
+
 system.runInterval(() => {
 	const soldTo = new Set();
 	for (const session of sessions.values()) {
@@ -487,10 +568,7 @@ system.runInterval(() => {
 		for (const jeweler of nearby) {
 			if (celebrations.has(jeweler.id)) continue;
 			try {
-				if (jeweler.getProperty(CELEBRATING)) {
-					jeweler.triggerEvent("vultrom:stop_sale_celebration");
-					jeweler.setProperty(CELEBRATING, false);
-				}
+				if (!aiReset.has(jeweler.id) || jeweler.getProperty(CELEBRATING)) resetJeweler(jeweler, jeweler.id);
 			} catch (err) {
 				console.warn("[vultrom] jeweler reset failed:", err);
 			}
@@ -505,12 +583,12 @@ function fortuneBonus(level) {
 	return Math.max(0, Math.floor(Math.random() * (level + 2)) - 1);
 }
 
-// The loot table drops 1 raw sapphire and Silk Touch drops the ore block (the engine skips
+// The loot table drops 1 raw gem and Silk Touch drops the ore block (the engine skips
 // minecraft:loot for Silk Touch). Loot tables cannot read Fortune III, so Fortune is applied here.
-/** Removes the ore item Silk Touch dropped at `center`; returns false if it isn't there yet. */
-function removeSilkTouchOreDrop(dimension, center) {
+/** Removes the `ore` item Silk Touch dropped at `center`; returns false if it isn't there yet. */
+function removeSilkTouchOreDrop(dimension, center, ore) {
 	for (const entity of dimension.getEntities({ location: center, maxDistance: 1.5, type: "minecraft:item" })) {
-		if (entity.getComponent("minecraft:item")?.itemStack?.typeId === ORE) {
+		if (entity.getComponent("minecraft:item")?.itemStack?.typeId === ore) {
 			entity.remove();
 			return true;
 		}
@@ -518,11 +596,15 @@ function removeSilkTouchOreDrop(dimension, center) {
 	return false;
 }
 
-// Only diamond and netherite pickaxes get Raw Sapphire (the loot table's match_tool pools);
-// anything else, including lower-tier Silk Touch, gets Sapphire Scraps instead.
+// Only diamond and netherite pickaxes get the raw gem (the loot tables' match_tool pools);
+// anything else, including lower-tier Silk Touch, gets the gem's scraps instead.
+// Mining time is block data only: a fixed hardness with no tool tag, so every tool takes the
+// same time (see the ore block files).
 world.afterEvents.playerBreakBlock.subscribe((event) => {
 	try {
-		if (event.brokenBlockPermutation.type.id !== ORE) return;
+		const ore = event.brokenBlockPermutation.type.id;
+		const drops = ORE_DROPS.get(ore);
+		if (!drops) return;
 		if (event.player.getGameMode() === GameMode.creative) return;
 		const tool = event.itemStackBeforeBreak;
 		const enchantable = /** @type {import("@minecraft/server").ItemEnchantableComponent | undefined} */ (
@@ -533,74 +615,23 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 		const center = { x: x + 0.5, y: y + 0.5, z: z + 0.5 };
 		const dimension = event.dimension;
 
-		if (tool && RAW_SAPPHIRE_PICKAXES.has(tool.typeId)) {
+		if (tool && RAW_GEM_PICKAXES.has(tool.typeId)) {
 			if (silkTouch) return;
 			const bonus = fortuneBonus(enchantable?.getEnchantment("fortune")?.level ?? 0);
-			if (bonus > 0) dimension.spawnItem(new ItemStack(RAW, bonus), center);
+			if (bonus > 0) dimension.spawnItem(new ItemStack(drops.raw, bonus), center);
 			return;
 		}
 
-		if (silkTouch && !removeSilkTouchOreDrop(dimension, center)) {
-			system.run(() => removeSilkTouchOreDrop(dimension, center));
+		if (silkTouch && !removeSilkTouchOreDrop(dimension, center, ore)) {
+			system.run(() => removeSilkTouchOreDrop(dimension, center, ore));
 		}
-		const scraps = new ItemStack(SCRAPS, 1);
+		const scraps = new ItemStack(drops.scraps, 1);
 		scraps.setLore(["Sad to look at"]);
 		dimension.spawnItem(scraps, center);
 	} catch (err) {
-		console.warn("[vultrom] sapphire ore drop failed:", err);
+		console.warn("[vultrom] gem ore drop failed:", err);
 	}
 });
-
-// Custom blocks never get the vanilla wrong-tool mining penalty (about 3.3× slower), and
-// item_specific_speeds needs the Upcoming Creator Features experiment, so any pickaxe mined
-// the ore at full speed. Mining Fatigue I (×0.3 speed) while a player mines it without a
-// diamond/netherite pickaxe restores that penalty; the pickaxe tag keeps tool tier and
-// Efficiency scaling. Hardness 3.0 then gives roughly: hand 15 s, wood 7.5 s, stone 3.8 s,
-// iron 2.5 s, gold 1.3 s, diamond 0.6 s, netherite 0.5 s.
-const ORE_PENALTY_TICKS = 6;
-const ORE_REACH = 7;
-/** Players mining Sapphire Ore with a penalized tool, keyed by player id. */
-const oreMiners = new Map();
-
-function heldTypeId(player) {
-	return player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex)?.typeId;
-}
-
-/** Applies the wrong-tool penalty; returns false if the player holds a diamond/netherite pickaxe. */
-function applyOrePenalty(player) {
-	if (RAW_SAPPHIRE_PICKAXES.has(heldTypeId(player))) return false;
-	// A stronger Mining Fatigue (Elder Guardian) already covers the penalty.
-	if ((player.getEffect("mining_fatigue")?.amplifier ?? -1) > 0) return true;
-	player.addEffect("mining_fatigue", ORE_PENALTY_TICKS, { amplifier: 0, showParticles: false });
-	return true;
-}
-
-world.afterEvents.entityHitBlock.subscribe((event) => {
-	const player = event.damagingEntity;
-	if (player?.typeId !== "minecraft:player" || event.hitBlock?.typeId !== ORE) return;
-	try {
-		if (player.getGameMode() === GameMode.creative) return;
-		if (applyOrePenalty(player)) oreMiners.set(player.id, player);
-	} catch (err) {
-		console.warn("[vultrom] sapphire ore mining penalty failed:", err);
-	}
-});
-
-system.runInterval(() => {
-	for (const [id, player] of oreMiners) {
-		try {
-			if (!player.isValid()) {
-				oreMiners.delete(id);
-				continue;
-			}
-			const target = player.getBlockFromViewDirection({ maxDistance: ORE_REACH })?.block;
-			if (target?.typeId !== ORE || !applyOrePenalty(player)) oreMiners.delete(id);
-		} catch (err) {
-			oreMiners.delete(id);
-			console.warn("[vultrom] sapphire ore mining penalty failed:", err);
-		}
-	}
-}, 2);
 
 function hash32(n) {
 	n |= 0;
@@ -609,20 +640,20 @@ function hash32(n) {
 	return (n ^ (n >>> 16)) >>> 0;
 }
 
-function chunkRng(cx, cz) {
-	return hash32(cx * 374761393 + cz * 668265263 + 0x5a7f31);
+function chunkRng(cx, cz, salt) {
+	return hash32(cx * 374761393 + cz * 668265263 + salt);
 }
 
 function nextRng(state) {
 	return hash32(state + 0x9e3779b9);
 }
 
-/** All ore attempt positions for a chunk (matches seedChunk placement walk). */
-function orePositionsForChunk(cx, cz) {
+/** All ore attempt positions for one gem in a chunk (the seedChunk placement walk). */
+function orePositionsForChunk(cx, cz, salt) {
 	const originX = cx << 4;
 	const originZ = cz << 4;
 	const positions = [];
-	let rng = chunkRng(cx, cz);
+	let rng = chunkRng(cx, cz, salt);
 	for (let v = 0; v < VEINS_PER_CHUNK; v++) {
 		rng = nextRng(rng);
 		let x = originX + (rng % 16);
@@ -648,63 +679,38 @@ function orePositionsForChunk(cx, cz) {
 	return positions;
 }
 
-function tryPlaceOre(dimension, x, y, z) {
+function tryPlaceOre(dimension, gem, loc) {
 	try {
-		const loc = { x, y, z };
 		const block = dimension.getBlock(loc);
 		if (!block) return;
-		const id = block.typeId;
-		if (id === ORE) return;
-		if (!REPLACEABLE.has(id)) return;
-		dimension.setBlockType(loc, ORE);
+		const ore = gem.place(block.typeId);
+		if (ore) dimension.setBlockType(loc, ore);
 	} catch (err) {
 		if (!placeErrorLogged) {
 			placeErrorLogged = true;
-			console.warn("[vultrom] sapphire ore placement failed:", err);
+			console.warn(`[vultrom] ${gem.label.toLowerCase()} ore placement failed:`, err);
 		}
 	}
 }
 
 /**
- * Deterministic, idempotent vein placement for one chunk.
+ * Deterministic, idempotent vein placement for one chunk, sapphire first, then ruby.
  * Re-running is safe: only replaces stone-type blocks.
  */
 function seedChunk(dimension, cx, cz) {
 	const key = `${cx},${cz}`;
 	if (seededChunks.has(key)) return;
-	if (!oreRegistered()) return;
 
-	const originX = cx << 4;
-	const originZ = cz << 4;
-	const probe = { x: originX + 8, y: 64, z: originZ + 8 };
+	const probe = { x: (cx << 4) + 8, y: 64, z: (cz << 4) + 8 };
 	try {
 		if (!dimension.getBlock(probe)) return;
 	} catch (_) {
 		return;
 	}
 
-	let rng = chunkRng(cx, cz);
-	for (let v = 0; v < VEINS_PER_CHUNK; v++) {
-		rng = nextRng(rng);
-		let x = originX + (rng % 16);
-		rng = nextRng(rng);
-		let z = originZ + (rng % 16);
-		rng = nextRng(rng);
-		let y = Y_MIN + (rng % (Y_MAX - Y_MIN + 1));
-
-		for (let i = 0; i < ORE_PER_VEIN; i++) {
-			tryPlaceOre(dimension, x, y, z);
-			rng = nextRng(rng);
-			const dir = rng % 6;
-			if (dir === 0) x += 1;
-			else if (dir === 1) x -= 1;
-			else if (dir === 2) y += 1;
-			else if (dir === 3) y -= 1;
-			else if (dir === 4) z += 1;
-			else z -= 1;
-			if (y < Y_MIN) y = Y_MIN;
-			if (y > Y_MAX) y = Y_MAX;
-		}
+	for (const gem of GEMS) {
+		if (!gemRegistered(gem)) continue;
+		for (const loc of orePositionsForChunk(cx, cz, gem.salt)) tryPlaceOre(dimension, gem, loc);
 	}
 
 	seededChunks.add(key);
@@ -745,10 +751,10 @@ function distSq(ax, ay, az, bx, by, bz) {
 }
 
 /**
- * Prefer deterministic vein origins (same RNG as seeding), then confirm block.
+ * Prefer deterministic vein positions (same RNG as seeding), then confirm the block.
  * Falls back to a short loaded-chunk scan if none of the predicted veins exist yet.
  */
-function findNearestSapphire(player) {
+function findNearestOre(player, gem) {
 	const dim = player.dimension;
 	const px = player.location.x;
 	const py = player.location.y;
@@ -764,7 +770,7 @@ function findNearestSapphire(player) {
 			const cx = pcx + dx;
 			const cz = pcz + dz;
 			seedChunk(dim, cx, cz);
-			for (const pos of orePositionsForChunk(cx, cz)) {
+			for (const pos of orePositionsForChunk(cx, cz, gem.salt)) {
 				candidates.push({
 					x: pos.x,
 					y: pos.y,
@@ -780,8 +786,8 @@ function findNearestSapphire(player) {
 	for (const c of candidates) {
 		try {
 			const block = dim.getBlock({ x: c.x, y: c.y, z: c.z });
-			if (block && block.typeId === ORE) {
-				return { x: c.x, y: c.y, z: c.z, dist: Math.sqrt(c.d) };
+			if (block && gem.ores.has(block.typeId)) {
+				return { x: c.x, y: c.y, z: c.z, typeId: block.typeId, dist: Math.sqrt(c.d) };
 			}
 		} catch (_) {
 			/* unloaded */
@@ -804,11 +810,11 @@ function findNearestSapphire(player) {
 			for (let y = y0; y <= y1; y++) {
 				try {
 					const block = dim.getBlock({ x, y, z });
-					if (!block || block.typeId !== ORE) continue;
+					if (!block || !gem.ores.has(block.typeId)) continue;
 					const d = distSq(px, py, pz, x + 0.5, y + 0.5, z + 0.5);
 					if (d < bestD) {
 						bestD = d;
-						best = { x, y, z, dist: Math.sqrt(d) };
+						best = { x, y, z, typeId: block.typeId, dist: Math.sqrt(d) };
 					}
 				} catch (_) {
 					/* ignore */
@@ -819,45 +825,49 @@ function findNearestSapphire(player) {
 	return best;
 }
 
-function reportSapphireFind(player) {
+function reportFind(player, gem) {
+	const name = `${gem.color}${gem.label}§r`;
 	try {
 		if (player.dimension.id !== OVERWORLD) {
-			player.sendMessage("§bSapphire§r: only searches the Overworld.");
+			player.sendMessage(`${name}: only searches the Overworld.`);
 			return;
 		}
-		if (!oreRegistered()) {
+		if (!gemRegistered(gem)) {
 			player.sendMessage(
-				"§cSapphire§r: the Sapphire Ore block failed to load, so none can generate. Re-import the Vultrom behavior pack and check the content log."
+				`§c${gem.label}§r: the ${gem.label} Ore block failed to load, so none can generate. Re-import the Vultrom behavior pack and check the content log.`
 			);
 			return;
 		}
-		const hit = findNearestSapphire(player);
+		const hit = findNearestOre(player, gem);
 		if (!hit) {
 			player.sendMessage(
-				`§bSapphire§r: none found within ${FIND_CHUNK_RADIUS * 16} blocks. Ore only seeds in loaded chunks (Y ${Y_MIN}…${Y_MAX}) — explore, then try again.`
+				`${name}: none found within ${FIND_CHUNK_RADIUS * 16} blocks. Ore only seeds in loaded chunks (Y ${Y_MIN}…${Y_MAX}) — explore, then try again.`
 			);
 			return;
 		}
 		const dx = hit.x + 0.5 - player.location.x;
 		const dz = hit.z + 0.5 - player.location.z;
 		const horiz = Math.sqrt(dx * dx + dz * dz);
+		const block = hit.typeId === DEEPSLATE_RUBY_ORE ? "Deepslate Ruby Ore" : `${gem.label} Ore`;
 		player.sendMessage(
-			`§bSapphire Ore§r at §e${hit.x} ${hit.y} ${hit.z}§r (§a${Math.round(hit.dist)}m§r away, §a${Math.round(horiz)}m§r horizontal).`
+			`${gem.color}${block}§r at §e${hit.x} ${hit.y} ${hit.z}§r (§a${Math.round(hit.dist)}m§r away, §a${Math.round(horiz)}m§r horizontal).`
 		);
 	} catch (err) {
-		console.warn("[vultrom] find sapphire failed:", err);
-		player.sendMessage("§cSapphire§r: search failed.");
+		console.warn(`[vultrom] find ${gem.label.toLowerCase()} failed:`, err);
+		player.sendMessage(`§c${gem.label}§r: search failed.`);
 	}
 }
 
 system.runInterval(() => {
 	for (const player of world.getAllPlayers()) {
-		try {
-			if (!player.hasTag(FIND_TAG)) continue;
-			player.removeTag(FIND_TAG);
-			reportSapphireFind(player);
-		} catch (_) {
-			/* ignore */
+		for (const gem of GEMS) {
+			try {
+				if (!player.hasTag(gem.findTag)) continue;
+				player.removeTag(gem.findTag);
+				reportFind(player, gem);
+			} catch (_) {
+				/* ignore */
+			}
 		}
 	}
 }, 1);
@@ -865,22 +875,25 @@ system.runInterval(() => {
 try {
 	world.beforeEvents.chatSend.subscribe((event) => {
 		const msg = (event.message || "").trim().toLowerCase();
-		if (msg !== FIND_CHAT && msg !== "/findsapphire") return;
+		const gem = GEMS.find((g) => g.chat.has(msg));
+		if (!gem) return;
 		event.cancel = true;
 		const player = event.sender;
-		system.run(() => reportSapphireFind(player));
+		system.run(() => reportFind(player, gem));
 	});
 } catch (err) {
-	console.warn("[vultrom] chat !findsapphire unavailable:", err);
+	console.warn("[vultrom] chat !findsapphire / !findruby unavailable:", err);
 }
 
 system.runInterval(seedAroundPlayers, SEED_INTERVAL_TICKS);
 
 system.runTimeout(() => {
-	if (!oreRegistered()) {
-		console.warn(`[vultrom] ${ORE} is not registered — sapphire ore cannot generate.`);
+	for (const gem of GEMS) {
+		if (!gemRegistered(gem)) {
+			console.warn(`[vultrom] ${[...gem.ores].join(" / ")} not registered — ${gem.label.toLowerCase()} ore cannot generate.`);
+		}
 	}
 	console.log(
-		"[vultrom] Sapphire ore + Jeweler + find_sapphire loaded. Command: /function vultrom/find_sapphire (or chat !findsapphire)."
+		"[vultrom] Sapphire + Ruby ore, Jeweler, find_sapphire + find_ruby loaded. Commands: /function vultrom/find_sapphire, /function vultrom/find_ruby (or chat !findsapphire / !findruby)."
 	);
 }, 1);

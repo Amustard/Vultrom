@@ -7,6 +7,12 @@
 		"vultrom_sapphire_ore": {
 			"textures": "textures/blocks/sapphire_ore"
 		},
+		"vultrom_ruby_ore": {
+			"textures": "textures/blocks/ruby_ore"
+		},
+		"vultrom_deepslate_ruby_ore": {
+			"textures": "textures/blocks/deepslate_ruby_ore"
+		},
 		"vultrom_gemstone_cutter_side": {
 			"textures": "textures/blocks/gemstone_cutter_side"
 		},

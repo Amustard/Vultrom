@@ -1,0 +1,22 @@
+{
+	"format_version": "1.21.40",
+	"minecraft:item": {
+		"description": {
+			"identifier": "vultrom:ruby_scraps",
+			"menu_category": {
+				"category": "items"
+			}
+		},
+		"components": {
+			"minecraft:max_stack_size": 64,
+			"minecraft:icon": {
+				"textures": {
+					"default": "vultrom_ruby_scraps"
+				}
+			},
+			"minecraft:display_name": {
+				"value": "Ruby Scraps"
+			}
+		}
+	}
+}

@@ -2,29 +2,29 @@
 	"format_version": 2,
 	"header": {
 		"name": "Vultrom Behavior",
-		"description": "Vultrom v0.1.7 (BP 1.0.7) — sapphire ore, Gemstone Cutter, Jeweler trades.",
+		"description": "Vultrom v0.1.8 (BP 1.0.8) — sapphire and ruby ore, Gemstone Cutter, Jeweler trades.",
 		"uuid": "d75300f0-6b16-4919-b9f4-03e6e59e79e3",
-		"version": [1, 0, 7],
+		"version": [1, 0, 8],
 		"min_engine_version": [1, 21, 50]
 	},
 	"modules": [
 		{
 			"type": "data",
 			"uuid": "72824bf5-589d-43ad-8eb6-04ffee65ba55",
-			"version": [1, 0, 7]
+			"version": [1, 0, 8]
 		},
 		{
 			"type": "script",
 			"language": "javascript",
 			"uuid": "2fb586b2-c757-4342-9c39-87f41e170e9b",
-			"version": [1, 0, 7],
+			"version": [1, 0, 8],
 			"entry": "scripts/main.js"
 		}
 	],
 	"dependencies": [
 		{
 			"uuid": "88bcae72-165f-4bcd-9d3f-9650743c61e7",
-			"version": [1, 0, 7]
+			"version": [1, 0, 8]
 		},
 		{
 			"module_name": "@minecraft/server",

@@ -17,7 +17,7 @@
 				}
 			},
 			"minecraft:destructible_by_mining": {
-				"seconds_to_destroy": 3.0
+				"seconds_to_destroy": 2.0
 			},
 			"minecraft:destructible_by_explosion": {
 				"explosion_resistance": 3.0
@@ -25,8 +25,7 @@
 			"minecraft:map_color": "#2B5C9E",
 			"minecraft:light_dampening": 15,
 			"minecraft:loot": "loot_tables/blocks/sapphire_ore.json",
-			"tag:minecraft:is_pickaxe_item_destructible": {},
-			"tag:minecraft:iron_tier_destructible": {}
+			"tag:minecraft:diamond_tier_destructible": {}
 		}
 	}
 }

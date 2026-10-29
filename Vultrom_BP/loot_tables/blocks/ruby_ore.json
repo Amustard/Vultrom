@@ -1,0 +1,14 @@
+{
+	"pools": [
+		{
+			"rolls": 1,
+			"conditions": [{ "condition": "match_tool", "item": "minecraft:diamond_pickaxe" }],
+			"entries": [{ "type": "item", "name": "vultrom:raw_ruby", "weight": 1 }]
+		},
+		{
+			"rolls": 1,
+			"conditions": [{ "condition": "match_tool", "item": "minecraft:netherite_pickaxe" }],
+			"entries": [{ "type": "item", "name": "vultrom:raw_ruby", "weight": 1 }]
+		}
+	]
+}
