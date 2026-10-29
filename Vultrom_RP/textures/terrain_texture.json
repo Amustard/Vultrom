@@ -7,14 +7,17 @@
 		"vultrom_sapphire_ore": {
 			"textures": "textures/blocks/sapphire_ore"
 		},
-		"vultrom_gemstone_cutter": {
-			"textures": "textures/blocks/gemstone_cutter"
-		},
 		"vultrom_gemstone_cutter_side": {
 			"textures": "textures/blocks/gemstone_cutter_side"
 		},
 		"vultrom_gemstone_cutter_top": {
 			"textures": "textures/blocks/gemstone_cutter_top"
+		},
+		"vultrom_gemstone_cutter_bottom": {
+			"textures": "textures/blocks/gemstone_cutter_bottom"
+		},
+		"vultrom_gemstone_cutter_saw": {
+			"textures": "textures/blocks/gemstone_cutter_saw"
 		}
 	}
 }

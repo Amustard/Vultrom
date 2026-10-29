@@ -1,0 +1,19 @@
+{
+	"format_version": "1.20.10",
+	"minecraft:recipe_shaped": {
+		"description": {
+			"identifier": "vultrom:gemstone_cutter"
+		},
+		"tags": ["crafting_table"],
+		"pattern": [" D ", "GGG", "SSS"],
+		"key": {
+			"D": { "item": "minecraft:diamond" },
+			"G": { "item": "minecraft:gold_ingot" },
+			"S": { "item": "minecraft:stone" }
+		},
+		"result": {
+			"item": "vultrom:gemstone_cutter",
+			"count": 1
+		}
+	}
+}

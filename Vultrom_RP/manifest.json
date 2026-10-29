@@ -2,16 +2,16 @@
 	"format_version": 2,
 	"header": {
 		"name": "Vultrom Resources",
-		"description": "Vultrom v0.1.6 (RP 1.0.6) — sapphire textures and Jeweler look.",
+		"description": "Vultrom v0.1.7 (RP 1.0.7) — sapphire textures and Jeweler look.",
 		"uuid": "88bcae72-165f-4bcd-9d3f-9650743c61e7",
-		"version": [1, 0, 6],
+		"version": [1, 0, 7],
 		"min_engine_version": [1, 21, 50]
 	},
 	"modules": [
 		{
 			"type": "resources",
 			"uuid": "2047f5ee-ea23-429e-aa79-3f37b15a3f29",
-			"version": [1, 0, 6]
+			"version": [1, 0, 7]
 		}
 	],
 	"metadata": {
