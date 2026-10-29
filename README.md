@@ -12,21 +12,21 @@ Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstat
 | Behavior pack | [Vultrom_BP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP.mcpack) |
 | Resource pack | [Vultrom_RP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP.mcpack) |
 
-Also listed under [`dist/`](./dist/).
+Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.1-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.1-bedrock)**.
 
 ### Install
 
 1. Download **Vultrom.mcaddon** (or both `.mcpack` files).
 2. **Double-click** to import into Minecraft Bedrock.
 3. Create or edit a world → **Resource Packs** + **Behavior Packs** → activate **both** Vultrom packs.
-4. **Experiments** → enable **Custom Biomes** (required for sapphire ore generation).
-5. Play — mine in **new chunks** (or a new world) to find Sapphire Ore.
+4. **No experiments required** — sapphire ore is placed by Script API (not `feature_rules`).
+5. Play and explore — ore seeds into loaded Overworld chunks around you (Y **-48…32**, stone/deepslate). Existing explored areas get ore as you re-enter them.
 
 ## Source packs (dev)
 
 | Folder | Role |
 |--------|------|
-| `Vultrom_BP/` | Behavior — blocks, item, ore gen, Jeweler entity, trades, bind script |
+| `Vultrom_BP/` | Behavior — blocks, item, script ore seeding, Jeweler entity, trades, bind script |
 | `Vultrom_RP/` | Resources — textures, entity look, lang |
 
 Rebuild downloads:
@@ -48,10 +48,14 @@ Rebuild downloads:
 
 | Feature | Detail |
 |---------|--------|
-| Sapphire Ore | Rare: **2 veins/chunk**, **3 blocks/vein**, Y **-48…32**, stone/deepslate |
+| Sapphire Ore | Rare: **2 veins/chunk**, **3 blocks/vein**, Y **-48…32**, stone/deepslate — script-seeded, no Custom Biomes experiment |
 | Sapphire | Ore drop (loot table) |
 | Gemstone Cutter | Workstation; bind via script (Bedrock has no custom vanilla professions) |
 | Jeweler trade | 1 Sapphire → **40–80 emeralds** |
+
+### Why not `feature_rules`?
+
+Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Custom Biomes** experiment (“Create custom biomes and change world generation”). That toggle is missing or removed on some Bedrock builds (e.g. Preview where custom biomes left experimental). Vultrom therefore seeds ore with `@minecraft/server` `setBlockType` instead.
 
 ### Textures
 
