@@ -4,30 +4,37 @@ Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstat
 
 > Java Fabric (Security Guards, Camera, Trader Desk) lives on the [`java`](https://github.com/Amustard/Vultrom/tree/java) branch — including playable `dist/` jars.
 
-## Packs
+## Download (easiest)
+
+| File | Link |
+|------|------|
+| **All-in-one** | [Vultrom.mcaddon](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom.mcaddon) |
+| Behavior pack | [Vultrom_BP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP.mcpack) |
+| Resource pack | [Vultrom_RP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP.mcpack) |
+
+Also listed under [`dist/`](./dist/).
+
+### Install
+
+1. Download **Vultrom.mcaddon** (or both `.mcpack` files).
+2. **Double-click** to import into Minecraft Bedrock.
+3. Create or edit a world → **Resource Packs** + **Behavior Packs** → activate **both** Vultrom packs.
+4. **Experiments** → enable **Custom Biomes** (required for sapphire ore generation).
+5. Play — mine in **new chunks** (or a new world) to find Sapphire Ore.
+
+## Source packs (dev)
 
 | Folder | Role |
 |--------|------|
 | `Vultrom_BP/` | Behavior — blocks, item, ore gen, Jeweler entity, trades, bind script |
 | `Vultrom_RP/` | Resources — textures, entity look, lang |
 
-## Install / test
+Rebuild downloads:
 
-1. Copy into your `com.mojang` folder:
-   - `development_behavior_packs/Vultrom_BP`
-   - `development_resource_packs/Vultrom_RP`  
-   Or zip each pack (with `manifest.json` at the zip root) as `.mcpack` / both as `.mcaddon`.
-2. World → **Experiments**: enable **Custom Biomes** (needed for ore feature rules).
-3. Activate **both** Vultrom Behavior + Vultrom Resources.
-4. Explore **new chunks** (or a new world) for sapphire ore.
-
-Creative checks:
-
-```
-/give @s vultrom:sapphire
-/give @s vultrom:sapphire_ore
-/give @s vultrom:gemstone_cutter
-/summon vultrom:jeweler
+```bash
+(cd Vultrom_BP && zip -r -X ../dist/Vultrom_BP.mcpack .)
+(cd Vultrom_RP && zip -r -X ../dist/Vultrom_RP.mcpack .)
+(cd dist && zip -X Vultrom.mcaddon Vultrom_BP.mcpack Vultrom_RP.mcpack)
 ```
 
 ## How to play
@@ -51,12 +58,5 @@ Creative checks:
 | Asset | Status |
 |-------|--------|
 | Sapphire ore / gem | Final (Mason) |
-| Jeweler profession overlay | Final (Mason) — `textures/entity/villager2/professions/jeweler.png` |
+| Jeweler profession overlay | Final (Mason) |
 | Gemstone Cutter block | Placeholder until Mason’s art |
-
-## Pack for sharing
-
-```bash
-(cd Vultrom_BP && zip -r ../Vultrom_BP.mcpack .)
-(cd Vultrom_RP && zip -r ../Vultrom_RP.mcpack .)
-```

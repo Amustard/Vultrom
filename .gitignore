@@ -8,9 +8,9 @@ Thumbs.db
 *.swp
 *~
 
-# Packed addon artifacts (source packs are the repo)
-*.mcpack
-*.mcaddon
+# Local packed artifacts outside dist/ (source packs + dist/ are tracked)
+/*.mcpack
+/*.mcaddon
 
 # Local Minecraft / tooling
 com.mojang/
