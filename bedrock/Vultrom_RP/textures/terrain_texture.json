@@ -1,0 +1,20 @@
+{
+	"resource_pack_name": "vultrom",
+	"texture_name": "atlas.terrain",
+	"padding": 8,
+	"num_mip_levels": 4,
+	"texture_data": {
+		"vultrom_sapphire_ore": {
+			"textures": "textures/blocks/sapphire_ore"
+		},
+		"vultrom_gemstone_cutter": {
+			"textures": "textures/blocks/gemstone_cutter"
+		},
+		"vultrom_gemstone_cutter_side": {
+			"textures": "textures/blocks/gemstone_cutter_side"
+		},
+		"vultrom_gemstone_cutter_top": {
+			"textures": "textures/blocks/gemstone_cutter_top"
+		}
+	}
+}

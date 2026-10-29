@@ -1,0 +1,18 @@
+{
+	"format_version": "1.21.40",
+	"minecraft:ore_feature": {
+		"description": {
+			"identifier": "vultrom:sapphire_ore_feature"
+		},
+		"count": 3,
+		"replace_rules": [
+			{
+				"places_block": "vultrom:sapphire_ore",
+				"may_replace": [
+					"minecraft:stone",
+					"minecraft:deepslate"
+				]
+			}
+		]
+	}
+}

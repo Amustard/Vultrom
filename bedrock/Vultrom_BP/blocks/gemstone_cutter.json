@@ -1,0 +1,41 @@
+{
+	"format_version": "1.21.40",
+	"minecraft:block": {
+		"description": {
+			"identifier": "vultrom:gemstone_cutter",
+			"menu_category": {
+				"category": "construction"
+			}
+		},
+		"components": {
+			"minecraft:geometry": "minecraft:geometry.full_block",
+			"minecraft:material_instances": {
+				"*": {
+					"texture": "vultrom_gemstone_cutter_side",
+					"render_method": "opaque"
+				},
+				"up": {
+					"texture": "vultrom_gemstone_cutter_top",
+					"render_method": "opaque"
+				},
+				"down": {
+					"texture": "vultrom_gemstone_cutter",
+					"render_method": "opaque"
+				}
+			},
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 2.5
+			},
+			"minecraft:destructible_by_explosion": {
+				"explosion_resistance": 2.5
+			},
+			"minecraft:map_color": "#4682A0",
+			"minecraft:light_dampening": 15,
+			"minecraft:crafting_table": {
+				"crafting_tags": ["jeweler"],
+				"table_name": "Gemstone Cutter"
+			},
+			"tag:minecraft:is_axe_item_destructible": {}
+		}
+	}
+}

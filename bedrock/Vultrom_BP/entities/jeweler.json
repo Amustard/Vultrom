@@ -1,0 +1,81 @@
+{
+	"format_version": "1.21.40",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "vultrom:jeweler",
+			"is_spawnable": true,
+			"is_summonable": true,
+			"is_experimental": false,
+			"spawn_category": "creature"
+		},
+		"components": {
+			"minecraft:type_family": {
+				"family": ["jeweler", "villager", "mob"]
+			},
+			"minecraft:nameable": {},
+			"minecraft:health": {
+				"value": 20,
+				"max": 20
+			},
+			"minecraft:collision_box": {
+				"width": 0.6,
+				"height": 1.9
+			},
+			"minecraft:hurt_on_condition": {
+				"damage_conditions": [
+					{
+						"filters": {
+							"test": "in_lava",
+							"subject": "self",
+							"operator": "==",
+							"value": true
+						},
+						"cause": "lava",
+						"damage_per_tick": 4
+					}
+				]
+			},
+			"minecraft:movement": {
+				"value": 0.5
+			},
+			"minecraft:navigation.walk": {
+				"can_pass_doors": true,
+				"can_open_doors": true,
+				"avoid_water": true
+			},
+			"minecraft:movement.basic": {},
+			"minecraft:jump.static": {},
+			"minecraft:can_climb": {},
+			"minecraft:physics": {},
+			"minecraft:pushable": {
+				"is_pushable": true,
+				"is_pushable_by_piston": true
+			},
+			"minecraft:breathable": {
+				"total_supply": 15,
+				"suffocate_time": 0
+			},
+			"minecraft:behavior.float": {
+				"priority": 0
+			},
+			"minecraft:behavior.trade_with_player": {
+				"priority": 1
+			},
+			"minecraft:behavior.look_at_player": {
+				"priority": 7,
+				"look_distance": 8
+			},
+			"minecraft:behavior.random_stroll": {
+				"priority": 9,
+				"speed_multiplier": 0.6
+			},
+			"minecraft:economy_trade_table": {
+				"display_name": "Jeweler",
+				"table": "trading/jeweler_trades.json",
+				"new_screen": true,
+				"persist_trades": true
+			},
+			"minecraft:conditional_bandwidth_optimization": {}
+		}
+	}
+}

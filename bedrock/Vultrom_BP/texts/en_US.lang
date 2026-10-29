@@ -1,0 +1,7 @@
+tile.vultrom:sapphire_ore.name=Sapphire Ore
+tile.vultrom:gemstone_cutter.name=Gemstone Cutter
+item.vultrom:sapphire=Sapphire
+item.spawn_egg.entity.vultrom:jeweler.name=Jeweler Spawn Egg
+entity.vultrom:jeweler.name=Jeweler
+pack.name=Vultrom Behavior
+pack.description=Sapphire ore, Gemstone Cutter workstation, and Jeweler trades.
