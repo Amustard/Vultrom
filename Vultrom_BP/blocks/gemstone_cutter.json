@@ -31,10 +31,7 @@
 			},
 			"minecraft:map_color": "#4682A0",
 			"minecraft:light_dampening": 15,
-			"minecraft:crafting_table": {
-				"crafting_tags": ["vultrom:gemstone_cutter"],
-				"table_name": "Gemstone Cutter"
-			},
+			"minecraft:custom_components": ["vultrom:gemstone_cutter"],
 			"tag:minecraft:is_axe_item_destructible": {}
 		}
 	}

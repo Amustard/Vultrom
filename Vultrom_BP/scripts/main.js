@@ -5,8 +5,8 @@
  * Ore uses Script API placement (no Custom Biomes / feature_rules experiment).
  * Cutter bind: Bedrock addons cannot register a true vanilla profession/POI, so
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
- * vultrom:jeweler (baked gold-robe villager skin + sapphire trades). The cutter's
- * crafting UI (raw sapphire → sapphire) comes from its minecraft:crafting_table component.
+ * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
+ * cutter while holding Raw Sapphire cuts it into Sapphire (sneak cuts the whole stack).
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
@@ -16,6 +16,7 @@ const BIND_RADIUS = 5;
 
 const ORE = "vultrom:sapphire_ore";
 const RAW = "vultrom:raw_sapphire";
+const SAPPHIRE = "vultrom:sapphire";
 const REPLACEABLE = new Set([
 	"minecraft:stone",
 	"minecraft:deepslate",
@@ -89,8 +90,8 @@ function bindJeweler(player, block) {
 		z: block.location.z + 0.5
 	};
 
-	// Like a vanilla workstation, one cutter employs one Jeweler; opening the cutting UI
-	// again must not convert the next villager that wanders by.
+	// Like a vanilla workstation, one cutter employs one Jeweler; using the cutter again
+	// must not convert the next villager that wanders by.
 	const claimed = dim.getEntities({ location: loc, maxDistance: BIND_RADIUS, type: JEWELER });
 	if (claimed.length > 0) return;
 
@@ -138,15 +139,76 @@ function bindJeweler(player, block) {
 	});
 }
 
-world.afterEvents.playerInteractWithBlock.subscribe((event) => {
-	try {
-		const block = event.block;
-		if (!block || block.typeId !== CUTTER) return;
-		if (event.player?.isSneaking) return;
-		bindJeweler(event.player, block);
-	} catch (err) {
-		console.warn("[vultrom] gemstone cutter bind failed:", err);
+/** Cuts the Raw Sapphire in the player's selected slot: one, or the whole stack. */
+function cutRawSapphire(player, wholeStack) {
+	const container = player.getComponent("minecraft:inventory")?.container;
+	if (!container) return;
+	const slot = player.selectedSlotIndex;
+	const held = container.getItem(slot);
+	if (!held || held.typeId !== RAW) return;
+
+	const count = wholeStack ? held.amount : 1;
+	if (held.amount > count) {
+		held.amount -= count;
+		container.setItem(slot, held);
+	} else {
+		container.setItem(slot, undefined);
 	}
+	const leftover = container.addItem(new ItemStack(SAPPHIRE, count));
+	if (leftover) player.dimension.spawnItem(leftover, player.location);
+
+	try {
+		player.playSound("block.stonecutter.use");
+	} catch (_) {
+		/* cosmetic only */
+	}
+	player.onScreenDisplay?.setActionBar(
+		`§bGemstone Cutter§r: cut ${count} Raw Sapphire into §3${count} Sapphire§r.`
+	);
+}
+
+/** @type {Map<string, number>} */
+const lastCutterUseTick = new Map();
+
+// The custom component makes the cutter an interactive block (empty hand and normal
+// right-click), while the before-event also sees sneak-clicks with an item, which skip
+// block interaction. Both can fire for one click, so each player acts once per tick.
+function useCutter(player, block) {
+	if (!player || !block || block.typeId !== CUTTER) return;
+	const tick = system.currentTick;
+	if (lastCutterUseTick.get(player.id) === tick) return;
+	lastCutterUseTick.set(player.id, tick);
+
+	const sneaking = player.isSneaking;
+	system.run(() => {
+		try {
+			if (!player.isValid() || !block.isValid() || block.typeId !== CUTTER) return;
+			const held = player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex);
+			if (held?.typeId === RAW) {
+				cutRawSapphire(player, sneaking);
+			} else if (!sneaking) {
+				bindJeweler(player, block);
+			}
+		} catch (err) {
+			console.warn("[vultrom] gemstone cutter failed:", err);
+		}
+	});
+}
+
+world.beforeEvents.worldInitialize.subscribe((event) => {
+	event.blockComponentRegistry.registerCustomComponent(CUTTER, {
+		onPlayerInteract: (e) => useCutter(e.player, e.block)
+	});
+});
+
+world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
+	if (!event.isFirstEvent) return;
+	if (event.block?.typeId !== CUTTER) return;
+	useCutter(event.player, event.block);
+});
+
+world.afterEvents.playerLeave.subscribe((event) => {
+	lastCutterUseTick.delete(event.playerId);
 });
 
 /** Vanilla ore Fortune: count × (1 + max(0, rand[0, level+1] − 1)); returns the extra items. */
