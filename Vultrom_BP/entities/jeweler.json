@@ -12,17 +12,11 @@
 			"minecraft:type_family": {
 				"family": ["jeweler", "villager", "mob"]
 			},
-			"minecraft:nameable": {},
+			"minecraft:nameable": {
+				"always_show": true,
+				"allow_name_tag_renaming": false
+			},
 			"minecraft:persistent": {},
-			"minecraft:skin_id": {
-				"value": 0
-			},
-			"minecraft:mark_variant": {
-				"value": 0
-			},
-			"minecraft:variant": {
-				"value": 1
-			},
 			"minecraft:health": {
 				"value": 20,
 				"max": 20

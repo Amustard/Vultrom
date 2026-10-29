@@ -3,5 +3,6 @@ tile.vultrom:gemstone_cutter.name=Gemstone Cutter
 item.vultrom:sapphire=Sapphire
 item.spawn_egg.entity.vultrom:jeweler.name=Jeweler Spawn Egg
 entity.vultrom:jeweler.name=Jeweler
+vultrom.rp_check=§a[Vultrom RP 1.0.3 loaded]§r
 pack.name=Vultrom Resources
-pack.description=Sapphire textures and Jeweler look for Vultrom.
+pack.description=Vultrom v0.1.3 — Sapphire textures and Jeweler look.

@@ -5,7 +5,7 @@
  * Ore uses Script API placement (no Custom Biomes / feature_rules experiment).
  * Cutter bind: Bedrock addons cannot register a true vanilla profession/POI, so
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
- * vultrom:jeweler (gold-robe profession overlay + sapphire trades).
+ * vultrom:jeweler (baked gold-robe villager skin + sapphire trades).
  */
 import { world, system } from "@minecraft/server";
 
@@ -38,7 +38,7 @@ function nearestVillager(dimension, location) {
 	let best = undefined;
 	let bestDist = Number.POSITIVE_INFINITY;
 	for (const entity of candidates) {
-		if (!entity.isValid) continue;
+		if (!entity.isValid()) continue;
 		const dx = entity.location.x - location.x;
 		const dy = entity.location.y - location.y;
 		const dz = entity.location.z - location.z;
@@ -49,6 +49,19 @@ function nearestVillager(dimension, location) {
 		}
 	}
 	return best;
+}
+
+function confirmJeweler(player) {
+	// vultrom.rp_check is defined only in the RP lang file: a raw key in chat means the
+	// client is not running the matching resource pack (stale or missing RP).
+	player?.sendMessage({
+		rawtext: [
+			{
+				text: "§bGemstone Cutter§r: that villager is now a §3Jeweler§r. Right-click them — sell 1 Sapphire for §a40–80 emeralds§r. "
+			},
+			{ translate: "vultrom.rp_check" }
+		]
+	});
 }
 
 function bindJeweler(player, block) {
@@ -74,35 +87,32 @@ function bindJeweler(player, block) {
 	};
 	const yaw = villager.getRotation?.()?.y;
 
-	villager.remove();
-
-	// Spawn next tick so removal/client refresh settle (avoids invisible jeweler).
+	// Spawn before removing so a failed spawn never deletes the villager.
 	system.run(() => {
+		let jeweler;
 		try {
-			const jeweler = dim.spawnEntity(JEWELER, spawnAt);
-			if (!jeweler) {
-				player?.sendMessage("§cGemstone Cutter§r: failed to spawn Jeweler.");
-				return;
-			}
-			try {
-				jeweler.nameTag = "Jeweler";
-			} catch (_) {
-				/* ignore */
-			}
-			if (typeof yaw === "number") {
-				try {
-					jeweler.setRotation({ x: 0, y: yaw });
-				} catch (_) {
-					/* ignore */
-				}
-			}
-			player?.sendMessage(
-				"§bGemstone Cutter§r: that villager is now a §3Jeweler§r. Right-click them — sell 1 Sapphire for §a40–80 emeralds§r."
-			);
+			jeweler = dim.spawnEntity(JEWELER, spawnAt);
 		} catch (err) {
 			console.warn("[vultrom] jeweler spawn failed:", err);
-			player?.sendMessage("§cGemstone Cutter§r: failed to spawn Jeweler.");
 		}
+		if (!jeweler?.isValid()) {
+			player?.sendMessage(
+				"§cGemstone Cutter§r: could not spawn a Jeweler — the villager was left in place. Make sure both Vultrom packs (BP + RP) are active."
+			);
+			return;
+		}
+		try {
+			jeweler.nameTag = "Jeweler";
+			if (typeof yaw === "number") jeweler.setRotation({ x: 0, y: yaw });
+		} catch (_) {
+			/* cosmetic only */
+		}
+		try {
+			if (villager.isValid()) villager.remove();
+		} catch (_) {
+			/* already gone */
+		}
+		confirmJeweler(player);
 	});
 }
 
