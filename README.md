@@ -1,6 +1,6 @@
 # Vultrom (Bedrock)
 
-Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstation, and **Jeweler** trades.
+Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstation, and **Jeweler** trades (sapphires and rubies).
 
 > Java Fabric (Security Guards, Camera, Trader Desk) lives on the [`java`](https://github.com/Amustard/Vultrom/tree/java) branch — including playable `dist/` jars.
 
@@ -8,17 +8,17 @@ Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstat
 
 | File | Link |
 |------|------|
-| **All-in-one** | [Vultrom-0.1.5.mcaddon](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom-0.1.5.mcaddon) |
-| Behavior pack | [Vultrom_BP-0.1.5.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP-0.1.5.mcpack) |
-| Resource pack | [Vultrom_RP-0.1.5.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP-0.1.5.mcpack) |
+| **All-in-one** | [Vultrom-0.1.6.mcaddon](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom-0.1.6.mcaddon) |
+| Behavior pack | [Vultrom_BP-0.1.6.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP-0.1.6.mcpack) |
+| Resource pack | [Vultrom_RP-0.1.6.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP-0.1.6.mcpack) |
 
-Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.5-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.5-bedrock)**. From 0.1.5 on, file names carry the version.
+Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.6-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.6-bedrock)**. From 0.1.6 on, file names carry the version.
 
 ### Install
 
 Requires Minecraft Bedrock **1.21.50 or newer**.
 
-1. Download **Vultrom-0.1.5.mcaddon** (or both `.mcpack` files).
+1. Download **Vultrom-0.1.6.mcaddon** (or both `.mcpack` files).
 2. **Double-click** to import into Minecraft Bedrock.
 3. Create or edit a world → **Resource Packs** + **Behavior Packs** → activate **both** Vultrom packs.
 4. **No experiments required** — sapphire ore is placed by Script API (not `feature_rules`).
@@ -30,8 +30,8 @@ Bedrock can keep loading an old copy of a pack, so remove the old ones before im
 
 1. Close the world. **Settings → Storage** (or *Global Resources / My Packs*) → delete **every** “Vultrom Behavior” and “Vultrom Resources” entry.
 2. Edit the world → **Behavior Packs** and **Resource Packs** → deactivate any Vultrom pack still listed under *Active*.
-3. Fully quit Minecraft, reopen, then import the new **Vultrom-0.1.5.mcaddon**.
-4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.5**.
+3. Fully quit Minecraft, reopen, then import the new **Vultrom-0.1.6.mcaddon**.
+4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.6**.
 
 ## Source packs (dev)
 
@@ -42,7 +42,7 @@ Bedrock can keep loading an old copy of a pack, so remove the old ones before im
 | `art/` | Source art not loaded by the game (Mason's Jeweler profession overlay) |
 | `tools/` | `build-dist.sh` (rebuild `dist/`), `bake_jeweler_skin.py` (rebuild the Jeweler skin) |
 
-Rebuild downloads (names come from the manifest version: BP/RP `1.0.5` → `Vultrom-0.1.5.mcaddon`):
+Rebuild downloads (names come from the manifest version: BP/RP `1.0.6` → `Vultrom-0.1.6.mcaddon`):
 
 ```bash
 tools/build-dist.sh
@@ -56,10 +56,10 @@ python3 tools/bake_jeweler_skin.py
 
 ## How to play
 
-1. Mine **Sapphire Ore** → get **Raw Sapphire** (Fortune adds more; Silk Touch drops the ore block).
-2. Place a **Gemstone Cutter**. Hold **Raw Sapphire** and right-click (tap) the cutter → **1 Raw Sapphire becomes 1 Sapphire**. **Sneak** + right-click cuts the **whole stack**. No menu, no recipe book.
-3. Right-click the cutter with anything else (or an empty hand) with a villager within 5 blocks → that villager becomes its **Jeweler** (gold robe with a sapphire chain, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, using the cutter converts nobody else. Chat confirms with **[Vultrom RP 1.0.5 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
-4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
+1. Mine **Sapphire Ore** with a **diamond or netherite pickaxe** → get **Raw Sapphire** (Fortune adds more; Silk Touch drops the ore block). Any other pickaxe, tool or bare hand only gets **Sapphire Scraps** — worthless ("Sad to look at").
+2. Place a **Gemstone Cutter**. Hold **Raw Sapphire** and right-click (tap) the cutter → **1 Raw Sapphire becomes 1 Sapphire**. **Sneak** + right-click cuts the **whole stack**. No menu, no recipe book. Clicking it with anything else shows a hint on the action bar.
+3. Right-click the cutter with anything else (or an empty hand) with a villager within 5 blocks → that villager becomes its **Jeweler** (gold robe with a sapphire chain, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, using the cutter converts nobody else. Chat confirms with **[Vultrom RP 1.0.6 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
+4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. After two sapphire sales he levels up and also buys **1 Ruby for 50–90 emeralds** (ruby ore is coming; for now rubies only exist in creative). He holds a sapphire while you trade. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
 
 Creative: **Sapphire Ore** is in the **Nature** tab inside the **Ores** group.
 
@@ -79,12 +79,13 @@ Searches loaded chunks up to **192 blocks** away and reports coordinates and dis
 
 | Feature | Detail |
 |---------|--------|
-| Sapphire Ore | **5 veins/chunk**, **3 blocks/vein**, Y **-48…32**, replaces stone/deepslate/granite/diorite/andesite/tuff — script-seeded within 4 chunks of each player, no Custom Biomes experiment |
-| Raw Sapphire | Ore drop (loot table); Fortune bonus via script (vanilla ore formula); Silk Touch drops the ore |
+| Sapphire Ore | Hardness **3.0** with the iron-tier pickaxe tag, like vanilla diamond ore (efficiency and tool tier scale mining speed). **5 veins/chunk**, **3 blocks/vein**, Y **-48…32**, replaces stone/deepslate/granite/diorite/andesite/tuff — script-seeded within 4 chunks of each player, no Custom Biomes experiment |
+| Raw Sapphire | Ore drop only with a diamond/netherite pickaxe (loot table `match_tool`); Fortune bonus via script (vanilla ore formula); Silk Touch drops the ore |
 | Sapphire | Gemstone Cutter: right-click with Raw Sapphire → 1 Sapphire (sneak: whole stack) |
 | Gemstone Cutter | Interactive block via a script custom component (`vultrom:gemstone_cutter`, no UI) + Jeweler workstation via script (Bedrock has no custom vanilla professions) |
 | Jeweler | Vanilla `villager_v2` behavior (Bedrock 1.21.50.7 sample) with one Jeweler profession — see below |
-| Jeweler trade | 1 Sapphire → **40–80 emeralds** |
+| Jeweler trades | Tier 1: buys 1 Sapphire → **40–80 emeralds**. Tier 2 (10 trader XP = two sapphire sales): buys 1 **Ruby** → **50–90 emeralds**. Prices live in `Vultrom_BP/trading/jeweler_trades.json` (`quantity`, `max_uses`, `total_exp_required`) |
+| Sapphire Scraps | Dropped by Sapphire Ore when not mined with a diamond/netherite pickaxe; no use |
 
 ### Why not `feature_rules`?
 
@@ -97,7 +98,9 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 | Sapphire ore block | Ore texture from the *Sapphires 1.16.5* Java pack by jacob (third-party, no license stated — check before wider release) |
 | Sapphire gem item | “Bunch o' Gems” sapphire by Beatso & Zankor2 (third-party — check license before wider release) |
 | Raw Sapphire item | **Placeholder** (dulled, stony sapphire) — Mason sending the real art |
-| Jeweler look | Mason's gold-robe + sapphire-chain overlay (`art/jeweler-profession.png`) baked onto the plains villager → `textures/entity/vultrom/jeweler.png` |
+| Sapphire Scraps item | **Placeholder** (three dull sapphire shards) |
+| Ruby item | “Bunch o' Gems” ruby by Beatso & Zankor2 (third-party — check license before wider release) |
+| Jeweler look | Mason's gold-robe + sapphire-chain overlay (`art/jeweler-profession.png`) baked onto the plains villager → `textures/entity/vultrom/jeweler.png` (64×128: skin on top, the sapphire icon he holds while trading below) |
 | Gemstone Cutter block | Placeholder until Mason’s art |
 
 ### Jeweler fix (v0.1.3)
@@ -117,3 +120,12 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 - **Jeweler = vanilla villager:** `entities/jeweler.json` is Mojang's `villager_v2` behavior with `runtime_identifier: minecraft:villager_v2`, so it keeps the villager AI, gossip, schedules (wander, bell gathering, home, bed), sleeping, hiding from raids, fleeing zombies/illagers, door opening, 20 health, trade UI, cured discounts, witch/zombie-villager conversion and breeding. The 14 random professions are replaced by one Jeweler profession. Bedrock can't register a new job-site block, so the Jeweler restocks at the start of each work period instead of at a workstation. Babies are born as vanilla villagers.
 - **Looks:** new Jeweler skin with a sapphire chain; new Sapphire Ore texture.
 - **Downloads** are named with the version (`Vultrom-0.1.5.mcaddon`, `Vultrom_BP-0.1.5.mcpack`, `Vultrom_RP-0.1.5.mcpack`).
+
+### v0.1.6
+
+- **Gemstone Cutter plain click:** in 0.1.5 the cutter was an interactive block (script custom component), so a plain right-click ran the block interaction, which didn't reach the script on Mason's game; only sneak-clicks cut. The cutter is no longer an interactive block: every click goes through `beforeEvents.playerInteractWithBlock`, which cancels the default action unless you sneak-place a block against it.
+- **Jeweler sounds:** new `Vultrom_RP/sounds.json` maps the vanilla villager sounds (idle, hurt, death, haggle, yes/no; celebrate uses “yes” — Bedrock villagers have no celebrate sound) for `vultrom:jeweler`.
+- **Held sapphire while trading:** bone `trade_sapphire` on the crossed arms, shown by the render controller while the synced entity property `vultrom:trading` is true. The script sets it when a player interacts with the Jeweler and clears it when that player moves or turns (the trade screen freezes both) or walks away.
+- **Sleeping pose:** the Jeweler now lies down in bed (vanilla `get_in_bed` animation) instead of standing in it.
+- **Sapphire Ore drops:** Raw Sapphire only with a diamond/netherite pickaxe; everything else drops Sapphire Scraps. Mining speed follows vanilla diamond ore.
+- **Ruby:** new item; the Jeweler buys it at trade tier 2 (no ruby ore yet).

@@ -4,7 +4,8 @@
 		"controller.render.vultrom_jeweler": {
 			"geometry": "Geometry.default",
 			"materials": [{ "*": "Material.default" }],
-			"textures": ["Texture.default"]
+			"textures": ["Texture.default"],
+			"part_visibility": [{ "*": true }, { "trade_sapphire": "query.property('vultrom:trading')" }]
 		}
 	}
 }

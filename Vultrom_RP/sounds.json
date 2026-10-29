@@ -1,0 +1,20 @@
+{
+	"entity_sounds": {
+		"entities": {
+			"vultrom:jeweler": {
+				"volume": 1.0,
+				"pitch": [0.8, 1.2],
+				"events": {
+					"ambient": "mob.villager.idle",
+					"hurt": "mob.villager.hit",
+					"death": "mob.villager.death",
+					"death.to.zombie": "mob.villager.death",
+					"haggle": "mob.villager.haggle",
+					"haggle.yes": "mob.villager.yes",
+					"haggle.no": "mob.villager.no",
+					"celebrate": "mob.villager.yes"
+				}
+			}
+		}
+	}
+}

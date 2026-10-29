@@ -12,7 +12,7 @@
 					0
 				],
 				"texture_width": 64,
-				"texture_height": 64
+				"texture_height": 128
 			},
 			"bones": [
 				{
@@ -237,6 +237,51 @@
 						0.0,
 						0.0,
 						0.0
+					]
+				},
+				{
+					"name": "trade_sapphire",
+					"parent": "arms",
+					"pivot": [
+						0.0,
+						19.5,
+						-2.6
+					],
+					"cubes": [
+						{
+							"origin": [
+								-3.5,
+								16.5,
+								-2.6
+							],
+							"size": [
+								7,
+								7,
+								0
+							],
+							"uv": {
+								"north": {
+									"uv": [
+										0,
+										64
+									],
+									"uv_size": [
+										16,
+										16
+									]
+								},
+								"south": {
+									"uv": [
+										16,
+										64
+									],
+									"uv_size": [
+										-16,
+										16
+									]
+								}
+							}
+						}
 					]
 				},
 				{

@@ -5,7 +5,14 @@
 			"identifier": "vultrom:jeweler",
 			"runtime_identifier": "minecraft:villager_v2",
 			"is_spawnable": true,
-			"is_summonable": true
+			"is_summonable": true,
+			"properties": {
+				"vultrom:trading": {
+					"type": "bool",
+					"default": false,
+					"client_sync": true
+				}
+			}
 		},
 		"component_groups": {
 			"minecraft:celebrate": {

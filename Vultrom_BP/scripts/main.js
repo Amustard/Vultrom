@@ -7,6 +7,7 @@
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
  * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
  * cutter while holding Raw Sapphire cuts it into Sapphire (sneak cuts the whole stack).
+ * The Jeweler shows a sapphire in his arms while a player trades with him.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
@@ -17,6 +18,8 @@ const BIND_RADIUS = 5;
 const ORE = "vultrom:sapphire_ore";
 const RAW = "vultrom:raw_sapphire";
 const SAPPHIRE = "vultrom:sapphire";
+const SCRAPS = "vultrom:sapphire_scraps";
+const RAW_SAPPHIRE_PICKAXES = new Set(["minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"]);
 const REPLACEABLE = new Set([
 	"minecraft:stone",
 	"minecraft:deepslate",
@@ -82,6 +85,9 @@ function confirmJeweler(player) {
 	});
 }
 
+const CUTTER_HINT = "§bGemstone Cutter§r: right-click with §3Raw Sapphire§r to cut, sneak to cut all.";
+
+/** Converts the nearest villager into this cutter's Jeweler; returns false if nobody was converted. */
 function bindJeweler(player, block) {
 	const dim = block.dimension;
 	const loc = {
@@ -93,14 +99,17 @@ function bindJeweler(player, block) {
 	// Like a vanilla workstation, one cutter employs one Jeweler; using the cutter again
 	// must not convert the next villager that wanders by.
 	const claimed = dim.getEntities({ location: loc, maxDistance: BIND_RADIUS, type: JEWELER });
-	if (claimed.length > 0) return;
+	if (claimed.length > 0) {
+		player?.onScreenDisplay?.setActionBar(CUTTER_HINT);
+		return false;
+	}
 
 	const villager = nearestVillager(dim, loc);
 	if (!villager) {
 		player?.onScreenDisplay?.setActionBar(
-			`§bGemstone Cutter§r: bring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`
+			`${CUTTER_HINT}\nBring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`
 		);
-		return;
+		return false;
 	}
 
 	const spawnAt = {
@@ -137,6 +146,7 @@ function bindJeweler(player, block) {
 		}
 		confirmJeweler(player);
 	});
+	return true;
 }
 
 /** Cuts the Raw Sapphire in the player's selected slot: one, or the whole stack. */
@@ -167,49 +177,121 @@ function cutRawSapphire(player, wholeStack) {
 	);
 }
 
-/** @type {Map<string, number>} */
-const lastCutterUseTick = new Map();
-
-// The custom component makes the cutter an interactive block (empty hand and normal
-// right-click), while the before-event also sees sneak-clicks with an item, which skip
-// block interaction. Both can fire for one click, so each player acts once per tick.
-function useCutter(player, block) {
-	if (!player || !block || block.typeId !== CUTTER) return;
-	const tick = system.currentTick;
-	if (lastCutterUseTick.get(player.id) === tick) return;
-	lastCutterUseTick.set(player.id, tick);
-
+// The cutter is deliberately not an interactive block (no crafting_table or custom
+// component): on interactive blocks a plain right-click runs the block's interaction
+// instead of this event, which left v0.1.5 cutting only while sneaking.
+world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
+	const { block, player } = event;
+	if (block?.typeId !== CUTTER || !player) return;
+	const holdingRaw = event.itemStack?.typeId === RAW;
 	const sneaking = player.isSneaking;
+	// Behave like a workstation: a plain click never places or uses the held item on the
+	// cutter; sneak-clicking with a block still places it against the cutter.
+	if (holdingRaw || !sneaking) event.cancel = true;
+	if (!event.isFirstEvent) return;
+	const holdingOther = !holdingRaw && event.itemStack !== undefined;
+	if (sneaking && holdingOther) return;
+
 	system.run(() => {
 		try {
 			if (!player.isValid() || !block.isValid() || block.typeId !== CUTTER) return;
-			const held = player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex);
-			if (held?.typeId === RAW) {
+			if (holdingRaw) {
 				cutRawSapphire(player, sneaking);
-			} else if (!sneaking) {
+			} else if (sneaking) {
+				player.onScreenDisplay?.setActionBar(CUTTER_HINT);
+			} else {
 				bindJeweler(player, block);
 			}
 		} catch (err) {
 			console.warn("[vultrom] gemstone cutter failed:", err);
 		}
 	});
+});
+
+// While a player trades with a Jeweler, the client shows a sapphire in his crossed arms
+// (bone "trade_sapphire", visible when this synced property is true).
+const TRADING = "vultrom:trading";
+// The trade screen freezes the player, so the first move or turn after it settles means
+// the screen was closed.
+const TRADE_SETTLE_TICKS = 6;
+const TRADE_MAX_MOVE = 0.2;
+const TRADE_MAX_TURN_DEG = 3;
+const TRADE_MAX_DIST = 8;
+const TRADE_SWEEP_RADIUS = 48;
+
+/** @type {Map<string, { jeweler: import("@minecraft/server").Entity, player: import("@minecraft/server").Player, settleTick: number, base?: { loc: import("@minecraft/server").Vector3, rot: import("@minecraft/server").Vector2 } }>} */
+const trades = new Map();
+
+function setTrading(jeweler, on) {
+	try {
+		if (jeweler.isValid() && jeweler.getProperty(TRADING) !== on) jeweler.setProperty(TRADING, on);
+	} catch (err) {
+		console.warn("[vultrom] jeweler trade pose failed:", err);
+	}
 }
 
-world.beforeEvents.worldInitialize.subscribe((event) => {
-	event.blockComponentRegistry.registerCustomComponent(CUTTER, {
-		onPlayerInteract: (e) => useCutter(e.player, e.block)
+function distance(a, b) {
+	return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+function turned(a, b) {
+	const yaw = Math.abs((((a.y - b.y) % 360) + 540) % 360 - 180);
+	return yaw > TRADE_MAX_TURN_DEG || Math.abs(a.x - b.x) > TRADE_MAX_TURN_DEG;
+}
+
+world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
+	const { target, player } = event;
+	if (target?.typeId !== JEWELER || !player) return;
+	system.run(() => {
+		if (!target.isValid() || !player.isValid()) return;
+		trades.set(target.id, { jeweler: target, player, settleTick: system.currentTick + TRADE_SETTLE_TICKS });
+		setTrading(target, true);
 	});
 });
 
-world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
-	if (!event.isFirstEvent) return;
-	if (event.block?.typeId !== CUTTER) return;
-	useCutter(event.player, event.block);
-});
+system.runInterval(() => {
+	for (const [id, trade] of trades) {
+		const { jeweler, player } = trade;
+		if (!jeweler.isValid() || !player.isValid()) {
+			trades.delete(id);
+			setTrading(jeweler, false);
+			continue;
+		}
+		if (system.currentTick < trade.settleTick) continue;
+		const pose = { loc: player.location, rot: player.getRotation() };
+		if (!trade.base) {
+			trade.base = pose;
+			continue;
+		}
+		if (
+			distance(pose.loc, trade.base.loc) > TRADE_MAX_MOVE ||
+			turned(pose.rot, trade.base.rot) ||
+			distance(player.location, jeweler.location) > TRADE_MAX_DIST
+		) {
+			trades.delete(id);
+			setTrading(jeweler, false);
+		}
+	}
+}, 2);
 
-world.afterEvents.playerLeave.subscribe((event) => {
-	lastCutterUseTick.delete(event.playerId);
-});
+// A world closed mid-trade saves the property as true; drop the sapphire on reload.
+system.runInterval(() => {
+	for (const player of world.getAllPlayers()) {
+		let nearby;
+		try {
+			nearby = player.dimension.getEntities({
+				location: player.location,
+				maxDistance: TRADE_SWEEP_RADIUS,
+				type: JEWELER
+			});
+		} catch (_) {
+			continue;
+		}
+		for (const jeweler of nearby) {
+			if (!trades.has(jeweler.id)) setTrading(jeweler, false);
+		}
+	}
+}, 40);
 
 /** Vanilla ore Fortune: count × (1 + max(0, rand[0, level+1] − 1)); returns the extra items. */
 function fortuneBonus(level) {
@@ -219,20 +301,47 @@ function fortuneBonus(level) {
 
 // The loot table drops 1 raw sapphire and Silk Touch drops the ore block (the engine skips
 // minecraft:loot for Silk Touch). Loot tables cannot read Fortune III, so Fortune is applied here.
+/** Removes the ore item Silk Touch dropped at `center`; returns false if it isn't there yet. */
+function removeSilkTouchOreDrop(dimension, center) {
+	for (const entity of dimension.getEntities({ location: center, maxDistance: 1.5, type: "minecraft:item" })) {
+		if (entity.getComponent("minecraft:item")?.itemStack?.typeId === ORE) {
+			entity.remove();
+			return true;
+		}
+	}
+	return false;
+}
+
+// Only diamond and netherite pickaxes get Raw Sapphire (the loot table's match_tool pools);
+// anything else, including lower-tier Silk Touch, gets Sapphire Scraps instead.
 world.afterEvents.playerBreakBlock.subscribe((event) => {
 	try {
 		if (event.brokenBlockPermutation.type.id !== ORE) return;
 		if (event.player.getGameMode() === GameMode.creative) return;
+		const tool = event.itemStackBeforeBreak;
 		const enchantable = /** @type {import("@minecraft/server").ItemEnchantableComponent | undefined} */ (
-			event.itemStackBeforeBreak?.getComponent("minecraft:enchantable")
+			tool?.getComponent("minecraft:enchantable")
 		);
-		if (!enchantable || enchantable.getEnchantment("silk_touch")) return;
-		const bonus = fortuneBonus(enchantable.getEnchantment("fortune")?.level ?? 0);
-		if (bonus <= 0) return;
+		const silkTouch = !!enchantable?.getEnchantment("silk_touch");
 		const { x, y, z } = event.block.location;
-		event.dimension.spawnItem(new ItemStack(RAW, bonus), { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+		const center = { x: x + 0.5, y: y + 0.5, z: z + 0.5 };
+		const dimension = event.dimension;
+
+		if (tool && RAW_SAPPHIRE_PICKAXES.has(tool.typeId)) {
+			if (silkTouch) return;
+			const bonus = fortuneBonus(enchantable?.getEnchantment("fortune")?.level ?? 0);
+			if (bonus > 0) dimension.spawnItem(new ItemStack(RAW, bonus), center);
+			return;
+		}
+
+		if (silkTouch && !removeSilkTouchOreDrop(dimension, center)) {
+			system.run(() => removeSilkTouchOreDrop(dimension, center));
+		}
+		const scraps = new ItemStack(SCRAPS, 1);
+		scraps.setLore(["Sad to look at"]);
+		dimension.spawnItem(scraps, center);
 	} catch (err) {
-		console.warn("[vultrom] sapphire fortune drop failed:", err);
+		console.warn("[vultrom] sapphire ore drop failed:", err);
 	}
 });
 

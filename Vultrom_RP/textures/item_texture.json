@@ -7,6 +7,12 @@
 		},
 		"vultrom_raw_sapphire": {
 			"textures": "textures/items/raw_sapphire"
+		},
+		"vultrom_sapphire_scraps": {
+			"textures": "textures/items/sapphire_scraps"
+		},
+		"vultrom_ruby": {
+			"textures": "textures/items/ruby"
 		}
 	}
 }

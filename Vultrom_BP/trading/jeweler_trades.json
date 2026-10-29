@@ -29,6 +29,36 @@
 					]
 				}
 			]
+		},
+		{
+			"total_exp_required": 10,
+			"groups": [
+				{
+					"num_to_select": 1,
+					"trades": [
+						{
+							"wants": [
+								{
+									"item": "vultrom:ruby",
+									"quantity": 1
+								}
+							],
+							"gives": [
+								{
+									"item": "minecraft:emerald",
+									"quantity": {
+										"min": 50,
+										"max": 90
+									}
+								}
+							],
+							"trader_exp": 10,
+							"max_uses": 8,
+							"reward_exp": true
+						}
+					]
+				}
+			]
 		}
 	]
 }
