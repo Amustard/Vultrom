@@ -4,6 +4,9 @@
 	"texture_data": {
 		"vultrom_sapphire": {
 			"textures": "textures/items/sapphire"
+		},
+		"vultrom_raw_sapphire": {
+			"textures": "textures/items/raw_sapphire"
 		}
 	}
 }

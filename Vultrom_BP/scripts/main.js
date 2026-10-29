@@ -1,33 +1,50 @@
 /**
- * Vultrom Bedrock — Sapphire ore seeding, Gemstone Cutter → Jeweler bind,
- * and /function vultrom/find_sapphire (also chat: !findsapphire).
+ * Vultrom Bedrock — Sapphire ore seeding, Fortune bonus drops, Gemstone Cutter → Jeweler
+ * bind, and /function vultrom/find_sapphire (also chat: !findsapphire with Beta APIs).
  *
  * Ore uses Script API placement (no Custom Biomes / feature_rules experiment).
  * Cutter bind: Bedrock addons cannot register a true vanilla profession/POI, so
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
- * vultrom:jeweler (baked gold-robe villager skin + sapphire trades).
+ * vultrom:jeweler (baked gold-robe villager skin + sapphire trades). The cutter's
+ * crafting UI (raw sapphire → sapphire) comes from its minecraft:crafting_table component.
  */
-import { world, system } from "@minecraft/server";
+import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
 const CUTTER = "vultrom:gemstone_cutter";
 const JEWELER = "vultrom:jeweler";
 const BIND_RADIUS = 5;
 
 const ORE = "vultrom:sapphire_ore";
-const REPLACEABLE = new Set(["minecraft:stone", "minecraft:deepslate"]);
+const RAW = "vultrom:raw_sapphire";
+const REPLACEABLE = new Set([
+	"minecraft:stone",
+	"minecraft:deepslate",
+	"minecraft:granite",
+	"minecraft:diorite",
+	"minecraft:andesite",
+	"minecraft:tuff"
+]);
+// Y range and ORE_PER_VEIN feed the deterministic walk: changing them moves every
+// existing vein. Raising VEINS_PER_CHUNK only appends veins, so older ore stays findable.
 const Y_MIN = -48;
 const Y_MAX = 32;
-const VEINS_PER_CHUNK = 2;
+const VEINS_PER_CHUNK = 5;
 const ORE_PER_VEIN = 3;
-const CHUNK_RADIUS = 2;
-const SEED_INTERVAL_TICKS = 40;
+const CHUNK_RADIUS = 4;
+const SEED_INTERVAL_TICKS = 20;
 const OVERWORLD = "minecraft:overworld";
 const FIND_TAG = "vultrom_find_sapphire";
-const FIND_CHUNK_RADIUS = 8;
+const FIND_CHUNK_RADIUS = 12;
+const FIND_SCAN_RADIUS = 8;
 const FIND_CHAT = "!findsapphire";
 
 /** @type {Set<string>} */
 const seededChunks = new Set();
+let placeErrorLogged = false;
+
+function oreRegistered() {
+	return BlockTypes.get(ORE) !== undefined;
+}
 
 function nearestVillager(dimension, location) {
 	const candidates = dimension.getEntities({
@@ -72,10 +89,15 @@ function bindJeweler(player, block) {
 		z: block.location.z + 0.5
 	};
 
+	// Like a vanilla workstation, one cutter employs one Jeweler; opening the cutting UI
+	// again must not convert the next villager that wanders by.
+	const claimed = dim.getEntities({ location: loc, maxDistance: BIND_RADIUS, type: JEWELER });
+	if (claimed.length > 0) return;
+
 	const villager = nearestVillager(dim, loc);
 	if (!villager) {
-		player?.sendMessage(
-			`§bGemstone Cutter§r: no villager within ${BIND_RADIUS} blocks. Move a villager closer, then right-click the cutter.`
+		player?.onScreenDisplay?.setActionBar(
+			`§bGemstone Cutter§r: bring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`
 		);
 		return;
 	}
@@ -124,6 +146,31 @@ world.afterEvents.playerInteractWithBlock.subscribe((event) => {
 		bindJeweler(event.player, block);
 	} catch (err) {
 		console.warn("[vultrom] gemstone cutter bind failed:", err);
+	}
+});
+
+/** Vanilla ore Fortune: count × (1 + max(0, rand[0, level+1] − 1)); returns the extra items. */
+function fortuneBonus(level) {
+	if (level <= 0) return 0;
+	return Math.max(0, Math.floor(Math.random() * (level + 2)) - 1);
+}
+
+// The loot table drops 1 raw sapphire and Silk Touch drops the ore block (the engine skips
+// minecraft:loot for Silk Touch). Loot tables cannot read Fortune III, so Fortune is applied here.
+world.afterEvents.playerBreakBlock.subscribe((event) => {
+	try {
+		if (event.brokenBlockPermutation.type.id !== ORE) return;
+		if (event.player.getGameMode() === GameMode.creative) return;
+		const enchantable = /** @type {import("@minecraft/server").ItemEnchantableComponent | undefined} */ (
+			event.itemStackBeforeBreak?.getComponent("minecraft:enchantable")
+		);
+		if (!enchantable || enchantable.getEnchantment("silk_touch")) return;
+		const bonus = fortuneBonus(enchantable.getEnchantment("fortune")?.level ?? 0);
+		if (bonus <= 0) return;
+		const { x, y, z } = event.block.location;
+		event.dimension.spawnItem(new ItemStack(RAW, bonus), { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+	} catch (err) {
+		console.warn("[vultrom] sapphire fortune drop failed:", err);
 	}
 });
 
@@ -182,18 +229,22 @@ function tryPlaceOre(dimension, x, y, z) {
 		if (id === ORE) return;
 		if (!REPLACEABLE.has(id)) return;
 		dimension.setBlockType(loc, ORE);
-	} catch (_) {
-		/* unloaded / out of bounds */
+	} catch (err) {
+		if (!placeErrorLogged) {
+			placeErrorLogged = true;
+			console.warn("[vultrom] sapphire ore placement failed:", err);
+		}
 	}
 }
 
 /**
  * Deterministic, idempotent vein placement for one chunk.
- * Re-running is safe: only replaces stone/deepslate.
+ * Re-running is safe: only replaces stone-type blocks.
  */
 function seedChunk(dimension, cx, cz) {
 	const key = `${cx},${cz}`;
 	if (seededChunks.has(key)) return;
+	if (!oreRegistered()) return;
 
 	const originX = cx << 4;
 	const originZ = cz << 4;
@@ -309,16 +360,17 @@ function findNearestSapphire(player) {
 		}
 	}
 
-	// Fallback: scan a small box around the player for already-placed ore.
-	const r = 24;
+	// Fallback: hand-placed ore near the player. Kept small so one tick stays well under the
+	// script watchdog limit.
+	const r = FIND_SCAN_RADIUS;
 	let best = undefined;
 	let bestD = Number.POSITIVE_INFINITY;
 	const x0 = Math.floor(px) - r;
 	const x1 = Math.floor(px) + r;
 	const z0 = Math.floor(pz) - r;
 	const z1 = Math.floor(pz) + r;
-	const y0 = Math.max(Y_MIN, Math.floor(py) - 32);
-	const y1 = Math.min(Y_MAX, Math.floor(py) + 32);
+	const y0 = Math.floor(py) - r;
+	const y1 = Math.floor(py) + r;
 	for (let x = x0; x <= x1; x++) {
 		for (let z = z0; z <= z1; z++) {
 			for (let y = y0; y <= y1; y++) {
@@ -345,10 +397,16 @@ function reportSapphireFind(player) {
 			player.sendMessage("§bSapphire§r: only searches the Overworld.");
 			return;
 		}
+		if (!oreRegistered()) {
+			player.sendMessage(
+				"§cSapphire§r: the Sapphire Ore block failed to load, so none can generate. Re-import the Vultrom behavior pack and check the content log."
+			);
+			return;
+		}
 		const hit = findNearestSapphire(player);
 		if (!hit) {
 			player.sendMessage(
-				"§bSapphire§r: none found nearby. Explore further (ore seeds in loaded chunks, Y -48…32), then try again."
+				`§bSapphire§r: none found within ${FIND_CHUNK_RADIUS * 16} blocks. Ore only seeds in loaded chunks (Y ${Y_MIN}…${Y_MAX}) — explore, then try again.`
 			);
 			return;
 		}
@@ -391,6 +449,9 @@ try {
 system.runInterval(seedAroundPlayers, SEED_INTERVAL_TICKS);
 
 system.runTimeout(() => {
+	if (!oreRegistered()) {
+		console.warn(`[vultrom] ${ORE} is not registered — sapphire ore cannot generate.`);
+	}
 	console.log(
 		"[vultrom] Sapphire ore + Jeweler + find_sapphire loaded. Command: /function vultrom/find_sapphire (or chat !findsapphire)."
 	);

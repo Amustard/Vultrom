@@ -14,7 +14,7 @@
 			},
 			"scripts": {
 				"scale": "0.9375",
-				"animate": ["general", "look_at_target", "move"]
+				"animate": ["general", "look_at_target", { "move": "query.modified_move_speed" }]
 			},
 			"animations": {
 				"general": "animation.villager.general",

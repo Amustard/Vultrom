@@ -32,7 +32,7 @@
 			"minecraft:map_color": "#4682A0",
 			"minecraft:light_dampening": 15,
 			"minecraft:crafting_table": {
-				"crafting_tags": ["jeweler"],
+				"crafting_tags": ["vultrom:gemstone_cutter"],
 				"table_name": "Gemstone Cutter"
 			},
 			"tag:minecraft:is_axe_item_destructible": {}
