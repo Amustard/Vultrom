@@ -1,51 +1,62 @@
-# Vultrom
+# Vultrom (Bedrock)
 
-Fabric mod for Mason’s **Vultrom** Minecraft server (Minecraft **26.3**).
+Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstation, and **Jeweler** trades.
 
-## Features
+> Java Fabric (Security Guards, Camera, Trader Desk) lives on the [`java`](https://github.com/Amustard/Vultrom/tree/java) branch — including playable `dist/` jars.
 
-### Security Guards
-- Place a **Guard Post** (unmanned — no auto-spawn)
-- Right-click the post to open a villager-like desk UI: Hire / duty / release / dismiss
-- Hired guards use the vanilla villager model with a custom security uniform texture
-- Per-post tone, patrol distance, area radius, and capture toggle
-- Warn → search/confiscate → attack → MVP detain (hold at post)
+## Packs
 
-### Camera
-- Take photos into a Photo item; sneak with a writable book to browse an album
+| Folder | Role |
+|--------|------|
+| `Vultrom_BP/` | Behavior — blocks, item, ore gen, Jeweler entity, trades, bind script |
+| `Vultrom_RP/` | Resources — textures, entity look, lang |
 
-### Trader Desk + player market
-- Place a **Trader Desk** (Functional Blocks creative tab)
-- Right-click → vanilla merchant UI with unique catalog trades + player listings
-- Sneak + right-click → listing board (list items, set emerald price, claim payouts, bind a villager)
-- Bound villagers open the same shop when right-clicked
+## Install / test
 
-## Build
+1. Copy into your `com.mojang` folder:
+   - `development_behavior_packs/Vultrom_BP`
+   - `development_resource_packs/Vultrom_RP`  
+   Or zip each pack (with `manifest.json` at the zip root) as `.mcpack` / both as `.mcaddon`.
+2. World → **Experiments**: enable **Custom Biomes** (needed for ore feature rules).
+3. Activate **both** Vultrom Behavior + Vultrom Resources.
+4. Explore **new chunks** (or a new world) for sapphire ore.
 
-Requires **JDK 25**.
+Creative checks:
 
-```bash
-export JAVA_HOME=/path/to/jdk-25
-./gradlew build
+```
+/give @s vultrom:sapphire
+/give @s vultrom:sapphire_ore
+/give @s vultrom:gemstone_cutter
+/summon vultrom:jeweler
 ```
 
-Output jar: `build/libs/vultrom-0.3.0.jar` (also under `dist/`)
+## How to play
 
-## Custom guard sounds
+1. Mine **Sapphire Ore** → get **Sapphire**.
+2. Place **Gemstone Cutter** near a normal villager (≤5 blocks).
+3. **Right-click the cutter** → villager becomes a **Jeweler**.
+4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**.
 
-Yes — you can use your own villager-style clips. See  
-`src/main/resources/assets/vultrom/sounds/entity/security_guard/README.txt`.
+## Details
 
-Defaults use vanilla villager voices via `sounds.json`.
+| Feature | Detail |
+|---------|--------|
+| Sapphire Ore | Rare: **2 veins/chunk**, **3 blocks/vein**, Y **-48…32**, stone/deepslate |
+| Sapphire | Ore drop (loot table) |
+| Gemstone Cutter | Workstation; bind via script (Bedrock has no custom vanilla professions) |
+| Jeweler trade | 1 Sapphire → **40–80 emeralds** |
 
-## Testing enforcement
+### Textures
 
-Creative / spectator players are ignored for search/detain. Use **survival** with TNT or flint & steel near a post that has **Capture ON**. Hitting a guard makes them chase past patrol bounds until they lose line of sight.
+| Asset | Status |
+|-------|--------|
+| Sapphire ore / gem | Final (Mason) |
+| Jeweler profession overlay | Final (Mason) — `textures/entity/villager2/professions/jeweler.png` |
+| Gemstone Cutter block | Placeholder until Mason’s art |
 
-## Dev run
+## Pack for sharing
 
 ```bash
-./gradlew runClient
-# or
-./gradlew runServer
+(cd Vultrom_BP && zip -r ../Vultrom_BP.mcpack .)
+(cd Vultrom_RP && zip -r ../Vultrom_RP.mcpack .)
 ```

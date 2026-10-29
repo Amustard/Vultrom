@@ -1,40 +1,17 @@
-# gradle
+# OS
+.DS_Store
+Thumbs.db
 
-.gradle/
-build/
-out/
-classes/
-
-# eclipse
-
-*.launch
-
-# idea
-
+# Editor
 .idea/
-*.iml
-*.ipr
-*.iws
-
-# vscode
-
-.settings/
 .vscode/
-bin/
-.classpath
-.project
+*.swp
+*~
 
-# macos
+# Packed addon artifacts (source packs are the repo)
+*.mcpack
+*.mcaddon
 
-*.DS_Store
-
-# fabric
-
-run/
-
-# java
-
-hs_err_*.log
-replay_*.log
-*.hprof
-*.jfr
+# Local Minecraft / tooling
+com.mojang/
+.mcpelauncher/
