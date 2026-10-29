@@ -5,7 +5,11 @@
 			"geometry": "Geometry.default",
 			"materials": [{ "*": "Material.default" }],
 			"textures": ["Texture.default"],
-			"part_visibility": [{ "*": true }, { "trade_sapphire": "query.property('vultrom:holds_sapphire')" }]
+			"part_visibility": [
+				{ "*": true },
+				{ "held_sapphire": "query.property('vultrom:held_gem') == 1" },
+				{ "held_ruby": "query.property('vultrom:held_gem') == 2" }
+			]
 		}
 	}
 }

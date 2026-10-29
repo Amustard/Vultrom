@@ -5,12 +5,15 @@
 			"loop": true,
 			"bones": {
 				"arms": {
-					"rotation": ["-25 + math.sin(query.life_time * 540) * 6", 0, 0]
+					"rotation": ["-10 + math.sin(query.life_time * 540) * 5", 0, 0]
 				},
-				"trade_sapphire": {
-					"position": [0, "0.6 + math.sin(query.life_time * 720) * 0.6", 0],
-					"rotation": ["45 - math.sin(query.life_time * 540) * 6", "math.sin(query.life_time * 300) * 20", 0],
-					"scale": 1.35
+				"held_sapphire": {
+					"rotation": ["20 - math.sin(query.life_time * 540) * 5", 0, 0],
+					"scale": 1.1
+				},
+				"held_ruby": {
+					"rotation": ["20 - math.sin(query.life_time * 540) * 5", 0, 0],
+					"scale": 1.1
 				}
 			}
 		}

@@ -7,9 +7,13 @@
 			"is_spawnable": true,
 			"is_summonable": true,
 			"properties": {
-				"vultrom:holds_sapphire": {
-					"type": "bool",
-					"default": false,
+				"vultrom:held_gem": {
+					"type": "int",
+					"range": [
+						0,
+						2
+					],
+					"default": 0,
 					"client_sync": true
 				},
 				"vultrom:celebrating": {

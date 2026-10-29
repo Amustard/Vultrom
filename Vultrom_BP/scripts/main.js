@@ -7,7 +7,7 @@
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
  * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
  * cutter while holding Raw Sapphire cuts it into Sapphire (sneak cuts the whole stack).
- * After a player sells him a gem, the Jeweler shows a sapphire and celebrates for ~8 seconds.
+ * After a player sells him a gem, the Jeweler holds that gem and celebrates for ~8 seconds.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
@@ -208,16 +208,19 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 	});
 });
 
-// The Jeweler shows a sapphire in his arms (bone "trade_sapphire", synced property HOLDS)
-// only after a player has sold him a gem. Bedrock has no trade event, so each player who
-// opens his trade screen gets a session that watches their gem and emerald counts: gems
-// going down while emeralds go up is a sale. When that player closes the screen, the
-// Jeweler celebrates (CELEBRATING: hops, strolls fast, cheers, raises the sapphire).
-const HOLDS = "vultrom:holds_sapphire";
+// The Jeweler holds the gem he was last sold (bones "held_sapphire" / "held_ruby", synced
+// int property HELD_GEM) only after a player has sold him one. Bedrock has no trade event,
+// so each player who opens his trade screen gets a session that watches their gem and
+// emerald counts: a gem count going down while emeralds go up is a sale. When that player
+// closes the screen, the Jeweler celebrates (CELEBRATING: hops, strolls fast, cheers,
+// raises the gem).
+const HELD_GEM = "vultrom:held_gem";
 const CELEBRATING = "vultrom:celebrating";
 const RUBY = "vultrom:ruby";
 const EMERALD = "minecraft:emerald";
-const SOLD_GEMS = new Set([SAPPHIRE, RUBY]);
+const NO_GEM = 0;
+const GEM_SAPPHIRE = 1;
+const GEM_RUBY = 2;
 // The trade screen freezes the player, so the first move or turn after it settles means
 // the screen was closed.
 const TRADE_SETTLE_TICKS = 6;
@@ -229,20 +232,22 @@ const TRADE_CLOSE_RECHECK_TICKS = 4;
 const TRADE_SWEEP_RADIUS = 48;
 const CELEBRATION_TICKS = 160;
 
+/** @typedef {{ sapphires: number, rubies: number, emeralds: number }} TradeCounts */
 /**
- * Open trade screens, keyed by player id.
- * @type {Map<string, { player: import("@minecraft/server").Player, jeweler: import("@minecraft/server").Entity, jewelerId: string, start: { gems: number, emeralds: number }, sold: boolean, settleTick: number, base?: { loc: import("@minecraft/server").Vector3, rot: import("@minecraft/server").Vector2 } }>}
+ * Open trade screens, keyed by player id. `ref` is the inventory at the last sale (or at
+ * opening); `prev` is the inventory at the last poll.
+ * @type {Map<string, { player: import("@minecraft/server").Player, jeweler: import("@minecraft/server").Entity, jewelerId: string, ref: TradeCounts, prev: TradeCounts, lastDrop: { [gem: number]: number }, gem: number, saleTick: number, settleTick: number, base?: { loc: import("@minecraft/server").Vector3, rot: import("@minecraft/server").Vector2 } }>}
  */
 const sessions = new Map();
 /**
  * Running celebrations, keyed by jeweler id.
- * @type {Map<string, { jeweler: import("@minecraft/server").Entity, endTick: number, nextHop: number, nextCheer: number, nextSparkle: number }>}
+ * @type {Map<string, { jeweler: import("@minecraft/server").Entity, gem: number, endTick: number, nextHop: number, nextCheer: number, nextSparkle: number }>}
  */
 const celebrations = new Map();
 
-function setFlag(jeweler, name, on) {
+function setFlag(jeweler, name, value) {
 	try {
-		if (jeweler.isValid() && jeweler.getProperty(name) !== on) jeweler.setProperty(name, on);
+		if (jeweler.isValid() && jeweler.getProperty(name) !== value) jeweler.setProperty(name, value);
 	} catch (err) {
 		console.warn(`[vultrom] jeweler ${name} failed:`, err);
 	}
@@ -258,42 +263,66 @@ function turned(a, b) {
 }
 
 function countTradeItems(player) {
-	const counts = { gems: 0, emeralds: 0 };
+	const counts = { sapphires: 0, rubies: 0, emeralds: 0 };
 	const container = player.getComponent("minecraft:inventory")?.container;
 	if (!container) return counts;
 	for (let slot = 0; slot < container.size; slot++) {
 		const item = container.getItem(slot);
 		if (!item) continue;
-		if (SOLD_GEMS.has(item.typeId)) counts.gems += item.amount;
+		if (item.typeId === SAPPHIRE) counts.sapphires += item.amount;
+		else if (item.typeId === RUBY) counts.rubies += item.amount;
 		else if (item.typeId === EMERALD) counts.emeralds += item.amount;
 	}
 	return counts;
 }
 
-function soldSince(player, start) {
-	const now = countTradeItems(player);
-	return now.gems < start.gems && now.emeralds > start.emeralds;
+/** Records a sale in `session` if one happened since the last one; returns true if so. */
+function checkSale(session) {
+	const now = countTradeItems(session.player);
+	const tick = system.currentTick;
+	if (now.sapphires < session.prev.sapphires) session.lastDrop[GEM_SAPPHIRE] = tick;
+	if (now.rubies < session.prev.rubies) session.lastDrop[GEM_RUBY] = tick;
+	session.prev = now;
+	const { ref } = session;
+	const soldSapphire = now.sapphires < ref.sapphires;
+	const soldRuby = now.rubies < ref.rubies;
+	if (now.emeralds <= ref.emeralds || (!soldSapphire && !soldRuby)) return false;
+	// The trade screen moves a gem into its input slot when its trade is selected, so with
+	// both counts down the gem that left the inventory most recently is the one sold.
+	if (soldSapphire && soldRuby) {
+		session.gem = (session.lastDrop[GEM_RUBY] ?? -1) > (session.lastDrop[GEM_SAPPHIRE] ?? -1) ? GEM_RUBY : GEM_SAPPHIRE;
+	} else {
+		session.gem = soldRuby ? GEM_RUBY : GEM_SAPPHIRE;
+	}
+	session.saleTick = tick;
+	session.ref = now;
+	return true;
 }
 
 function refreshHold(jeweler, jewelerId) {
 	if (!jeweler.isValid()) return;
-	let held = celebrations.has(jewelerId);
-	for (const session of sessions.values()) {
-		if (session.sold && session.jewelerId === jewelerId) held = true;
+	let gem = celebrations.get(jewelerId)?.gem ?? NO_GEM;
+	if (gem === NO_GEM) {
+		let latest = -1;
+		for (const session of sessions.values()) {
+			if (session.gem !== NO_GEM && session.jewelerId === jewelerId && session.saleTick > latest) {
+				latest = session.saleTick;
+				gem = session.gem;
+			}
+		}
 	}
-	setFlag(jeweler, HOLDS, held);
+	setFlag(jeweler, HELD_GEM, gem);
 }
 
 function endSession(playerId, session) {
 	sessions.delete(playerId);
 	system.runTimeout(() => {
-		let sold = session.sold;
 		try {
-			if (!sold && session.player.isValid()) sold = soldSince(session.player, session.start);
+			if (session.player.isValid()) checkSale(session);
 		} catch (err) {
 			console.warn("[vultrom] jeweler sale check failed:", err);
 		}
-		if (sold && session.jeweler.isValid()) startCelebration(session.jeweler, session.jewelerId);
+		if (session.gem !== NO_GEM && session.jeweler.isValid()) startCelebration(session.jeweler, session.jewelerId, session.gem);
 		else refreshHold(session.jeweler, session.jewelerId);
 	}, TRADE_CLOSE_RECHECK_TICKS);
 }
@@ -315,20 +344,22 @@ function sparkle(jeweler, count) {
 	}
 }
 
-function startCelebration(jeweler, jewelerId) {
+function startCelebration(jeweler, jewelerId, gem) {
 	const now = system.currentTick;
 	const running = celebrations.get(jewelerId);
 	if (running) {
 		running.endTick = now + CELEBRATION_TICKS;
+		running.gem = gem;
+		setFlag(jeweler, HELD_GEM, gem);
 		return;
 	}
-	celebrations.set(jewelerId, { jeweler, endTick: now + CELEBRATION_TICKS, nextHop: now + 4, nextCheer: now + 30, nextSparkle: now + 6 });
+	celebrations.set(jewelerId, { jeweler, gem, endTick: now + CELEBRATION_TICKS, nextHop: now + 4, nextCheer: now + 30, nextSparkle: now + 6 });
 	try {
 		jeweler.triggerEvent("vultrom:start_sale_celebration");
 	} catch (err) {
 		console.warn("[vultrom] jeweler celebration start failed:", err);
 	}
-	setFlag(jeweler, HOLDS, true);
+	setFlag(jeweler, HELD_GEM, gem);
 	setFlag(jeweler, CELEBRATING, true);
 	try {
 		playSoundAt(jeweler, "mob.villager.yes", 1.1);
@@ -394,12 +425,16 @@ world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
 			return;
 		}
 		if (open) endSession(player.id, open);
+		const counts = countTradeItems(player);
 		sessions.set(player.id, {
 			player,
 			jeweler: target,
 			jewelerId,
-			start: countTradeItems(player),
-			sold: false,
+			ref: counts,
+			prev: counts,
+			lastDrop: {},
+			gem: NO_GEM,
+			saleTick: -1,
 			settleTick
 		});
 	});
@@ -413,10 +448,7 @@ system.runInterval(() => {
 			endSession(playerId, session);
 			continue;
 		}
-		if (!session.sold && soldSince(player, session.start)) {
-			session.sold = true;
-			setFlag(jeweler, HOLDS, true);
-		}
+		if (checkSale(session)) setFlag(jeweler, HELD_GEM, session.gem);
 		if (now < session.settleTick) continue;
 		const pose = { loc: player.location, rot: player.getRotation() };
 		if (!session.base) {
@@ -439,7 +471,7 @@ system.runInterval(() => {
 system.runInterval(() => {
 	const soldTo = new Set();
 	for (const session of sessions.values()) {
-		if (session.sold) soldTo.add(session.jewelerId);
+		if (session.gem !== NO_GEM) soldTo.add(session.jewelerId);
 	}
 	for (const player of world.getAllPlayers()) {
 		let nearby;
@@ -462,7 +494,7 @@ system.runInterval(() => {
 			} catch (err) {
 				console.warn("[vultrom] jeweler reset failed:", err);
 			}
-			if (!soldTo.has(jeweler.id)) setFlag(jeweler, HOLDS, false);
+			if (!soldTo.has(jeweler.id)) setFlag(jeweler, HELD_GEM, NO_GEM);
 		}
 	}
 }, 40);
