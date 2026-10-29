@@ -7,7 +7,12 @@
 			"is_spawnable": true,
 			"is_summonable": true,
 			"properties": {
-				"vultrom:trading": {
+				"vultrom:holds_sapphire": {
+					"type": "bool",
+					"default": false,
+					"client_sync": true
+				},
+				"vultrom:celebrating": {
 					"type": "bool",
 					"default": false,
 					"client_sync": true
@@ -544,6 +549,15 @@
 				},
 				"minecraft:transformation": {
 					"into": "minecraft:villager_v2"
+				}
+			},
+			"vultrom:sale_celebration": {
+				"minecraft:behavior.random_stroll": {
+					"priority": 3,
+					"speed_multiplier": 0.9,
+					"interval": 1,
+					"xz_dist": 5,
+					"y_dist": 2
 				}
 			}
 		},
@@ -1360,6 +1374,20 @@
 						"make_and_receive_love",
 						"wander_schedule_villager",
 						"trade_resupply_component_group"
+					]
+				}
+			},
+			"vultrom:start_sale_celebration": {
+				"add": {
+					"component_groups": [
+						"vultrom:sale_celebration"
+					]
+				}
+			},
+			"vultrom:stop_sale_celebration": {
+				"remove": {
+					"component_groups": [
+						"vultrom:sale_celebration"
 					]
 				}
 			}

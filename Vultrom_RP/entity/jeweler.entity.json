@@ -18,14 +18,16 @@
 					"general",
 					{ "look_at_target": "!query.is_sleeping" },
 					{ "move": "query.modified_move_speed" },
-					{ "get_in_bed": "query.is_sleeping" }
+					{ "get_in_bed": "query.is_sleeping" },
+					{ "hold_up": "query.property('vultrom:celebrating')" }
 				]
 			},
 			"animations": {
 				"general": "animation.villager.general",
 				"look_at_target": "animation.common.look_at_target",
 				"move": "animation.villager.move",
-				"get_in_bed": "animation.villager.get_in_bed"
+				"get_in_bed": "animation.villager.get_in_bed",
+				"hold_up": "animation.vultrom.jeweler.hold_up"
 			},
 			"render_controllers": ["controller.render.vultrom_jeweler"],
 			"spawn_egg": {

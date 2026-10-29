@@ -7,7 +7,7 @@
  * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
  * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
  * cutter while holding Raw Sapphire cuts it into Sapphire (sneak cuts the whole stack).
- * The Jeweler shows a sapphire in his arms while a player trades with him.
+ * After a player sells him a gem, the Jeweler shows a sapphire and celebrates for ~8 seconds.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
 
@@ -208,25 +208,43 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 	});
 });
 
-// While a player trades with a Jeweler, the client shows a sapphire in his crossed arms
-// (bone "trade_sapphire", visible when this synced property is true).
-const TRADING = "vultrom:trading";
+// The Jeweler shows a sapphire in his arms (bone "trade_sapphire", synced property HOLDS)
+// only after a player has sold him a gem. Bedrock has no trade event, so each player who
+// opens his trade screen gets a session that watches their gem and emerald counts: gems
+// going down while emeralds go up is a sale. When that player closes the screen, the
+// Jeweler celebrates (CELEBRATING: hops, strolls fast, cheers, raises the sapphire).
+const HOLDS = "vultrom:holds_sapphire";
+const CELEBRATING = "vultrom:celebrating";
+const RUBY = "vultrom:ruby";
+const EMERALD = "minecraft:emerald";
+const SOLD_GEMS = new Set([SAPPHIRE, RUBY]);
 // The trade screen freezes the player, so the first move or turn after it settles means
 // the screen was closed.
 const TRADE_SETTLE_TICKS = 6;
 const TRADE_MAX_MOVE = 0.2;
 const TRADE_MAX_TURN_DEG = 3;
 const TRADE_MAX_DIST = 8;
+// Items left in the trade slots (or on the cursor) return to the inventory on close.
+const TRADE_CLOSE_RECHECK_TICKS = 4;
 const TRADE_SWEEP_RADIUS = 48;
+const CELEBRATION_TICKS = 160;
 
-/** @type {Map<string, { jeweler: import("@minecraft/server").Entity, player: import("@minecraft/server").Player, settleTick: number, base?: { loc: import("@minecraft/server").Vector3, rot: import("@minecraft/server").Vector2 } }>} */
-const trades = new Map();
+/**
+ * Open trade screens, keyed by player id.
+ * @type {Map<string, { player: import("@minecraft/server").Player, jeweler: import("@minecraft/server").Entity, jewelerId: string, start: { gems: number, emeralds: number }, sold: boolean, settleTick: number, base?: { loc: import("@minecraft/server").Vector3, rot: import("@minecraft/server").Vector2 } }>}
+ */
+const sessions = new Map();
+/**
+ * Running celebrations, keyed by jeweler id.
+ * @type {Map<string, { jeweler: import("@minecraft/server").Entity, endTick: number, nextHop: number, nextCheer: number, nextSparkle: number }>}
+ */
+const celebrations = new Map();
 
-function setTrading(jeweler, on) {
+function setFlag(jeweler, name, on) {
 	try {
-		if (jeweler.isValid() && jeweler.getProperty(TRADING) !== on) jeweler.setProperty(TRADING, on);
+		if (jeweler.isValid() && jeweler.getProperty(name) !== on) jeweler.setProperty(name, on);
 	} catch (err) {
-		console.warn("[vultrom] jeweler trade pose failed:", err);
+		console.warn(`[vultrom] jeweler ${name} failed:`, err);
 	}
 }
 
@@ -239,43 +257,190 @@ function turned(a, b) {
 	return yaw > TRADE_MAX_TURN_DEG || Math.abs(a.x - b.x) > TRADE_MAX_TURN_DEG;
 }
 
+function countTradeItems(player) {
+	const counts = { gems: 0, emeralds: 0 };
+	const container = player.getComponent("minecraft:inventory")?.container;
+	if (!container) return counts;
+	for (let slot = 0; slot < container.size; slot++) {
+		const item = container.getItem(slot);
+		if (!item) continue;
+		if (SOLD_GEMS.has(item.typeId)) counts.gems += item.amount;
+		else if (item.typeId === EMERALD) counts.emeralds += item.amount;
+	}
+	return counts;
+}
+
+function soldSince(player, start) {
+	const now = countTradeItems(player);
+	return now.gems < start.gems && now.emeralds > start.emeralds;
+}
+
+function refreshHold(jeweler, jewelerId) {
+	if (!jeweler.isValid()) return;
+	let held = celebrations.has(jewelerId);
+	for (const session of sessions.values()) {
+		if (session.sold && session.jewelerId === jewelerId) held = true;
+	}
+	setFlag(jeweler, HOLDS, held);
+}
+
+function endSession(playerId, session) {
+	sessions.delete(playerId);
+	system.runTimeout(() => {
+		let sold = session.sold;
+		try {
+			if (!sold && session.player.isValid()) sold = soldSince(session.player, session.start);
+		} catch (err) {
+			console.warn("[vultrom] jeweler sale check failed:", err);
+		}
+		if (sold && session.jeweler.isValid()) startCelebration(session.jeweler, session.jewelerId);
+		else refreshHold(session.jeweler, session.jewelerId);
+	}, TRADE_CLOSE_RECHECK_TICKS);
+}
+
+function playSoundAt(jeweler, sound, pitch) {
+	const options = { pitch, volume: 1 };
+	if (typeof jeweler.dimension.playSound === "function") jeweler.dimension.playSound(sound, jeweler.location, options);
+	else world.playSound(sound, jeweler.location, options);
+}
+
+function sparkle(jeweler, count) {
+	const { x, y, z } = jeweler.location;
+	for (let i = 0; i < count; i++) {
+		jeweler.dimension.spawnParticle("minecraft:villager_happy", {
+			x: x + (Math.random() - 0.5) * 1.2,
+			y: y + 1.6 + Math.random() * 0.8,
+			z: z + (Math.random() - 0.5) * 1.2
+		});
+	}
+}
+
+function startCelebration(jeweler, jewelerId) {
+	const now = system.currentTick;
+	const running = celebrations.get(jewelerId);
+	if (running) {
+		running.endTick = now + CELEBRATION_TICKS;
+		return;
+	}
+	celebrations.set(jewelerId, { jeweler, endTick: now + CELEBRATION_TICKS, nextHop: now + 4, nextCheer: now + 30, nextSparkle: now + 6 });
+	try {
+		jeweler.triggerEvent("vultrom:start_sale_celebration");
+	} catch (err) {
+		console.warn("[vultrom] jeweler celebration start failed:", err);
+	}
+	setFlag(jeweler, HOLDS, true);
+	setFlag(jeweler, CELEBRATING, true);
+	try {
+		playSoundAt(jeweler, "mob.villager.yes", 1.1);
+		sparkle(jeweler, 8);
+	} catch (err) {
+		console.warn("[vultrom] jeweler celebration effects failed:", err);
+	}
+}
+
+function stopCelebration(jeweler, jewelerId) {
+	celebrations.delete(jewelerId);
+	if (!jeweler.isValid()) return;
+	try {
+		jeweler.triggerEvent("vultrom:stop_sale_celebration");
+	} catch (err) {
+		console.warn("[vultrom] jeweler celebration stop failed:", err);
+	}
+	setFlag(jeweler, CELEBRATING, false);
+	refreshHold(jeweler, jewelerId);
+}
+
+function tickCelebration(jewelerId, party, now) {
+	const { jeweler } = party;
+	if (!jeweler.isValid()) {
+		celebrations.delete(jewelerId);
+		return;
+	}
+	if (now >= party.endTick) {
+		stopCelebration(jeweler, jewelerId);
+		return;
+	}
+	try {
+		if (now >= party.nextSparkle) {
+			sparkle(jeweler, 2);
+			party.nextSparkle = now + 6;
+		}
+		if (now >= party.nextCheer) {
+			playSoundAt(jeweler, "mob.villager.yes", 0.9 + Math.random() * 0.4);
+			party.nextCheer = now + 30 + Math.floor(Math.random() * 16);
+		}
+		if (now >= party.nextHop && jeweler.isOnGround) {
+			jeweler.applyImpulse({ x: (Math.random() - 0.5) * 0.3, y: 0.42, z: (Math.random() - 0.5) * 0.3 });
+			party.nextHop = now + 14 + Math.floor(Math.random() * 11);
+		}
+	} catch (err) {
+		console.warn("[vultrom] jeweler celebration tick failed:", err);
+	}
+}
+
 world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
 	const { target, player } = event;
 	if (target?.typeId !== JEWELER || !player) return;
 	system.run(() => {
 		if (!target.isValid() || !player.isValid()) return;
-		trades.set(target.id, { jeweler: target, player, settleTick: system.currentTick + TRADE_SETTLE_TICKS });
-		setTrading(target, true);
+		const jewelerId = target.id;
+		// Trading again ends the outburst; the next sale starts a new one.
+		if (celebrations.has(jewelerId)) stopCelebration(target, jewelerId);
+		const settleTick = system.currentTick + TRADE_SETTLE_TICKS;
+		const open = sessions.get(player.id);
+		if (open?.jewelerId === jewelerId) {
+			open.settleTick = settleTick;
+			open.base = undefined;
+			return;
+		}
+		if (open) endSession(player.id, open);
+		sessions.set(player.id, {
+			player,
+			jeweler: target,
+			jewelerId,
+			start: countTradeItems(player),
+			sold: false,
+			settleTick
+		});
 	});
 });
 
 system.runInterval(() => {
-	for (const [id, trade] of trades) {
-		const { jeweler, player } = trade;
+	const now = system.currentTick;
+	for (const [playerId, session] of sessions) {
+		const { jeweler, player } = session;
 		if (!jeweler.isValid() || !player.isValid()) {
-			trades.delete(id);
-			setTrading(jeweler, false);
+			endSession(playerId, session);
 			continue;
 		}
-		if (system.currentTick < trade.settleTick) continue;
+		if (!session.sold && soldSince(player, session.start)) {
+			session.sold = true;
+			setFlag(jeweler, HOLDS, true);
+		}
+		if (now < session.settleTick) continue;
 		const pose = { loc: player.location, rot: player.getRotation() };
-		if (!trade.base) {
-			trade.base = pose;
+		if (!session.base) {
+			session.base = pose;
 			continue;
 		}
 		if (
-			distance(pose.loc, trade.base.loc) > TRADE_MAX_MOVE ||
-			turned(pose.rot, trade.base.rot) ||
+			distance(pose.loc, session.base.loc) > TRADE_MAX_MOVE ||
+			turned(pose.rot, session.base.rot) ||
 			distance(player.location, jeweler.location) > TRADE_MAX_DIST
 		) {
-			trades.delete(id);
-			setTrading(jeweler, false);
+			endSession(playerId, session);
 		}
 	}
+	for (const [jewelerId, party] of celebrations) tickCelebration(jewelerId, party, now);
 }, 2);
 
-// A world closed mid-trade saves the property as true; drop the sapphire on reload.
+// A world closed mid-sale or mid-outburst saves the properties (and the celebration group);
+// reset any Jeweler the script is not tracking.
 system.runInterval(() => {
+	const soldTo = new Set();
+	for (const session of sessions.values()) {
+		if (session.sold) soldTo.add(session.jewelerId);
+	}
 	for (const player of world.getAllPlayers()) {
 		let nearby;
 		try {
@@ -288,7 +453,16 @@ system.runInterval(() => {
 			continue;
 		}
 		for (const jeweler of nearby) {
-			if (!trades.has(jeweler.id)) setTrading(jeweler, false);
+			if (celebrations.has(jeweler.id)) continue;
+			try {
+				if (jeweler.getProperty(CELEBRATING)) {
+					jeweler.triggerEvent("vultrom:stop_sale_celebration");
+					jeweler.setProperty(CELEBRATING, false);
+				}
+			} catch (err) {
+				console.warn("[vultrom] jeweler reset failed:", err);
+			}
+			if (!soldTo.has(jeweler.id)) setFlag(jeweler, HOLDS, false);
 		}
 	}
 }, 40);

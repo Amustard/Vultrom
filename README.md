@@ -58,8 +58,8 @@ python3 tools/bake_jeweler_skin.py
 
 1. Mine **Sapphire Ore** with a **diamond or netherite pickaxe** → get **Raw Sapphire** (Fortune adds more; Silk Touch drops the ore block). Any other pickaxe, tool or bare hand only gets **Sapphire Scraps** — worthless ("Sad to look at").
 2. Place a **Gemstone Cutter**. Hold **Raw Sapphire** and right-click (tap) the cutter → **1 Raw Sapphire becomes 1 Sapphire**. **Sneak** + right-click cuts the **whole stack**. No menu, no recipe book. Clicking it with anything else shows a hint on the action bar.
-3. Right-click the cutter with anything else (or an empty hand) with a villager within 5 blocks → that villager becomes its **Jeweler** (gold robe with a sapphire chain, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, using the cutter converts nobody else. Chat confirms with **[Vultrom RP 1.0.6 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
-4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. After two sapphire sales he levels up and also buys **1 Ruby for 50–90 emeralds** (ruby ore is coming; for now rubies only exist in creative). He holds a sapphire while you trade. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
+3. Right-click the cutter with anything else (or an empty hand) with a villager within 5 blocks → that villager becomes its **Jeweler** (gold robe, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, using the cutter converts nobody else. Chat confirms with **[Vultrom RP 1.0.6 (build 2) loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
+4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. After two sapphire sales he levels up and also buys **1 Ruby for 50–90 emeralds** (ruby ore is coming; for now rubies only exist in creative). Once you sell him a Sapphire or a Ruby he holds a sapphire, and when you close the trade screen he celebrates for about 8 seconds: hops and runs around, cheers, sparkles green and holds the sapphire up. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
 
 Creative: **Sapphire Ore** is in the **Nature** tab inside the **Ores** group.
 
@@ -82,7 +82,7 @@ Searches loaded chunks up to **192 blocks** away and reports coordinates and dis
 | Sapphire Ore | Hardness **3.0** with the iron-tier pickaxe tag, like vanilla diamond ore (efficiency and tool tier scale mining speed). **5 veins/chunk**, **3 blocks/vein**, Y **-48…32**, replaces stone/deepslate/granite/diorite/andesite/tuff — script-seeded within 4 chunks of each player, no Custom Biomes experiment |
 | Raw Sapphire | Ore drop only with a diamond/netherite pickaxe (loot table `match_tool`); Fortune bonus via script (vanilla ore formula); Silk Touch drops the ore |
 | Sapphire | Gemstone Cutter: right-click with Raw Sapphire → 1 Sapphire (sneak: whole stack) |
-| Gemstone Cutter | Interactive block via a script custom component (`vultrom:gemstone_cutter`, no UI) + Jeweler workstation via script (Bedrock has no custom vanilla professions) |
+| Gemstone Cutter | Plain block, clicks handled by `beforeEvents.playerInteractWithBlock` (no UI) + Jeweler workstation via script (Bedrock has no custom vanilla professions) |
 | Jeweler | Vanilla `villager_v2` behavior (Bedrock 1.21.50.7 sample) with one Jeweler profession — see below |
 | Jeweler trades | Tier 1: buys 1 Sapphire → **40–80 emeralds**. Tier 2 (10 trader XP = two sapphire sales): buys 1 **Ruby** → **50–90 emeralds**. Prices live in `Vultrom_BP/trading/jeweler_trades.json` (`quantity`, `max_uses`, `total_exp_required`) |
 | Sapphire Scraps | Dropped by Sapphire Ore when not mined with a diamond/netherite pickaxe; no use |
@@ -100,7 +100,7 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 | Raw Sapphire item | **Placeholder** (dulled, stony sapphire) — Mason sending the real art |
 | Sapphire Scraps item | **Placeholder** (three dull sapphire shards) |
 | Ruby item | “Bunch o' Gems” ruby by Beatso & Zankor2 (third-party — check license before wider release) |
-| Jeweler look | Mason's gold-robe + sapphire-chain overlay (`art/jeweler-profession.png`) baked onto the plains villager → `textures/entity/vultrom/jeweler.png` (64×128: skin on top, the sapphire icon he holds while trading below) |
+| Jeweler look | Mason's v3 Jeweler overlay (`art/jeweler-profession.png`, from `media/jeweler-skin-v3.png`) baked onto the plains villager → `textures/entity/vultrom/jeweler.png` (64×128: skin on top, the sapphire icon he holds after a sale below) |
 | Gemstone Cutter block | Placeholder until Mason’s art |
 
 ### Jeweler fix (v0.1.3)
@@ -125,7 +125,9 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 
 - **Gemstone Cutter plain click:** in 0.1.5 the cutter was an interactive block (script custom component), so a plain right-click ran the block interaction, which didn't reach the script on Mason's game; only sneak-clicks cut. The cutter is no longer an interactive block: every click goes through `beforeEvents.playerInteractWithBlock`, which cancels the default action unless you sneak-place a block against it.
 - **Jeweler sounds:** new `Vultrom_RP/sounds.json` maps the vanilla villager sounds (idle, hurt, death, haggle, yes/no; celebrate uses “yes” — Bedrock villagers have no celebrate sound) for `vultrom:jeweler`.
-- **Held sapphire while trading:** bone `trade_sapphire` on the crossed arms, shown by the render controller while the synced entity property `vultrom:trading` is true. The script sets it when a player interacts with the Jeweler and clears it when that player moves or turns (the trade screen freezes both) or walks away.
+- **Held sapphire after a sale:** bone `trade_sapphire` on the crossed arms, shown while the synced entity property `vultrom:holds_sapphire` is true. Bedrock has no trade event, so each player who opens the Jeweler's trade screen gets a script session that watches their Sapphire + Ruby and emerald counts; gems going down while emeralds go up counts as a sale. The screen counts as closed when that player moves or turns (the trade screen freezes both) or walks away.
+- **Sale celebration:** after a sale, closing the trade screen starts an ~8 second outburst: component group `vultrom:sale_celebration` (fast `random_stroll`), script hops, `mob.villager.yes` cheers, `villager_happy` particles, and animation `animation.vultrom.jeweler.hold_up` (property `vultrom:celebrating`) raising the sapphire. Opening his trades again ends it early.
+- **Skin:** Mason's v3 Jeweler skin replaces the chain skin.
 - **Sleeping pose:** the Jeweler now lies down in bed (vanilla `get_in_bed` animation) instead of standing in it.
 - **Sapphire Ore drops:** Raw Sapphire only with a diamond/netherite pickaxe; everything else drops Sapphire Scraps. Mining speed follows vanilla diamond ore.
 - **Ruby:** new item; the Jeweler buys it at trade tier 2 (no ruby ore yet).
