@@ -551,6 +551,57 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 	}
 });
 
+// Custom blocks never get the vanilla wrong-tool mining penalty (about 3.3× slower), and
+// item_specific_speeds needs the Upcoming Creator Features experiment, so any pickaxe mined
+// the ore at full speed. Mining Fatigue I (×0.3 speed) while a player mines it without a
+// diamond/netherite pickaxe restores that penalty; the pickaxe tag keeps tool tier and
+// Efficiency scaling. Hardness 3.0 then gives roughly: hand 15 s, wood 7.5 s, stone 3.8 s,
+// iron 2.5 s, gold 1.3 s, diamond 0.6 s, netherite 0.5 s.
+const ORE_PENALTY_TICKS = 6;
+const ORE_REACH = 7;
+/** Players mining Sapphire Ore with a penalized tool, keyed by player id. */
+const oreMiners = new Map();
+
+function heldTypeId(player) {
+	return player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex)?.typeId;
+}
+
+/** Applies the wrong-tool penalty; returns false if the player holds a diamond/netherite pickaxe. */
+function applyOrePenalty(player) {
+	if (RAW_SAPPHIRE_PICKAXES.has(heldTypeId(player))) return false;
+	// A stronger Mining Fatigue (Elder Guardian) already covers the penalty.
+	if ((player.getEffect("mining_fatigue")?.amplifier ?? -1) > 0) return true;
+	player.addEffect("mining_fatigue", ORE_PENALTY_TICKS, { amplifier: 0, showParticles: false });
+	return true;
+}
+
+world.afterEvents.entityHitBlock.subscribe((event) => {
+	const player = event.damagingEntity;
+	if (player?.typeId !== "minecraft:player" || event.hitBlock?.typeId !== ORE) return;
+	try {
+		if (player.getGameMode() === GameMode.creative) return;
+		if (applyOrePenalty(player)) oreMiners.set(player.id, player);
+	} catch (err) {
+		console.warn("[vultrom] sapphire ore mining penalty failed:", err);
+	}
+});
+
+system.runInterval(() => {
+	for (const [id, player] of oreMiners) {
+		try {
+			if (!player.isValid()) {
+				oreMiners.delete(id);
+				continue;
+			}
+			const target = player.getBlockFromViewDirection({ maxDistance: ORE_REACH })?.block;
+			if (target?.typeId !== ORE || !applyOrePenalty(player)) oreMiners.delete(id);
+		} catch (err) {
+			oreMiners.delete(id);
+			console.warn("[vultrom] sapphire ore mining penalty failed:", err);
+		}
+	}
+}, 2);
+
 function hash32(n) {
 	n |= 0;
 	n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
