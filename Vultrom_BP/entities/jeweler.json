@@ -13,6 +13,16 @@
 				"family": ["jeweler", "villager", "mob"]
 			},
 			"minecraft:nameable": {},
+			"minecraft:persistent": {},
+			"minecraft:skin_id": {
+				"value": 0
+			},
+			"minecraft:mark_variant": {
+				"value": 0
+			},
+			"minecraft:variant": {
+				"value": 1
+			},
 			"minecraft:health": {
 				"value": 20,
 				"max": 20

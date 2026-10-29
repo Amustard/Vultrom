@@ -12,7 +12,7 @@ Minecraft **Bedrock** addon: rare **Sapphire** ore, **Gemstone Cutter** workstat
 | Behavior pack | [Vultrom_BP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP.mcpack) |
 | Resource pack | [Vultrom_RP.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP.mcpack) |
 
-Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.1-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.1-bedrock)**.
+Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.2-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.2-bedrock)**.
 
 ### Install
 
@@ -26,7 +26,7 @@ Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.1-bedrock](https
 
 | Folder | Role |
 |--------|------|
-| `Vultrom_BP/` | Behavior — blocks, item, script ore seeding, Jeweler entity, trades, bind script |
+| `Vultrom_BP/` | Behavior — blocks, item, script ore seeding, Jeweler entity, trades, bind script, find function |
 | `Vultrom_RP/` | Resources — textures, entity look, lang |
 
 Rebuild downloads:
@@ -41,8 +41,24 @@ Rebuild downloads:
 
 1. Mine **Sapphire Ore** → get **Sapphire**.
 2. Place **Gemstone Cutter** near a normal villager (≤5 blocks).
-3. **Right-click the cutter** → villager becomes a **Jeweler**.
+3. **Right-click the cutter** → villager becomes a **Jeweler** (visible gold-robe outfit).
 4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**.
+
+### Find nearest Sapphire Ore
+
+Cheats / commands enabled:
+
+```
+/function vultrom/find_sapphire
+```
+
+Or type in chat (no slash needed):
+
+```
+!findsapphire
+```
+
+Reports coordinates and distance. (`/locate` cannot find custom ore blocks.)
 
 ## Details
 
@@ -61,6 +77,7 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 
 | Asset | Status |
 |-------|--------|
-| Sapphire ore / gem | Final (Mason) |
+| Sapphire ore block | Final (Mason) |
+| Sapphire gem item | **Placeholder** — Mason replacing later |
 | Jeweler profession overlay | Final (Mason) |
 | Gemstone Cutter block | Placeholder until Mason’s art |

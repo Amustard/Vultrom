@@ -9,14 +9,50 @@
 			},
 			"textures": {
 				"base": "textures/entity/villager2/villager",
+				"base2": "textures/entity/villager2/villager",
+				"base3": "textures/entity/villager2/villager",
+				"base4": "textures/entity/villager2/villager",
+				"base5": "textures/entity/villager2/villager",
+				"base6": "textures/entity/villager2/villager",
+				"desert": "textures/entity/villager2/biomes/biome_desert",
+				"jungle": "textures/entity/villager2/biomes/biome_jungle",
 				"plains": "textures/entity/villager2/biomes/biome_plains",
-				"jeweler": "textures/entity/villager2/professions/jeweler"
+				"savanna": "textures/entity/villager2/biomes/biome_savanna",
+				"snow": "textures/entity/villager2/biomes/biome_snow",
+				"swamp": "textures/entity/villager2/biomes/biome_swamp",
+				"taiga": "textures/entity/villager2/biomes/biome_taiga",
+				"unskilled": "textures/entity/villager2/professions/unskilled",
+				"farmer": "textures/entity/villager2/professions/jeweler",
+				"fisherman": "textures/entity/villager2/professions/fisherman",
+				"shepherd": "textures/entity/villager2/professions/shepherd",
+				"fletcher": "textures/entity/villager2/professions/fletcher",
+				"librarian": "textures/entity/villager2/professions/librarian",
+				"cartographer": "textures/entity/villager2/professions/cartographer",
+				"cleric": "textures/entity/villager2/professions/cleric",
+				"armorer": "textures/entity/villager2/professions/armorer",
+				"weapon_smith": "textures/entity/villager2/professions/weaponsmith",
+				"tool_smith": "textures/entity/villager2/professions/toolsmith",
+				"butcher": "textures/entity/villager2/professions/butcher",
+				"leatherworker": "textures/entity/villager2/professions/leatherworker",
+				"stonemason": "textures/entity/villager2/professions/stonemason",
+				"nitwit": "textures/entity/villager2/professions/nitwit",
+				"level_stone": "textures/entity/villager2/levels/level_stone",
+				"level_iron": "textures/entity/villager2/levels/level_iron",
+				"level_gold": "textures/entity/villager2/levels/level_gold",
+				"level_emerald": "textures/entity/villager2/levels/level_emerald",
+				"level_diamond": "textures/entity/villager2/levels/level_diamond"
 			},
 			"geometry": {
 				"default": "geometry.villager_v2"
 			},
 			"scripts": {
-				"scale": "0.9375"
+				"scale": "0.9375",
+				"pre_animation": [
+					"variable.num_professions = 15;",
+					"variable.num_tiers = 3;",
+					"variable.profession_index = (query.variant < variable.num_professions ? query.variant : 0);",
+					"variable.level_index = query.trade_tier;"
+				]
 			},
 			"animations": {
 				"general": "animation.villager.general",
@@ -31,7 +67,8 @@
 			],
 			"render_controllers": [
 				"controller.render.vultrom_jeweler_base",
-				"controller.render.vultrom_jeweler_outfit"
+				"controller.render.vultrom_jeweler_masked",
+				"controller.render.vultrom_jeweler_level"
 			],
 			"spawn_egg": {
 				"base_color": "#2B5C9E",
