@@ -8,6 +8,7 @@ tile.vultrom:ruby_ore.name=Ruby Ore
 tile.vultrom:deepslate_ruby_ore.name=Deepslate Ruby Ore
 item.vultrom:raw_ruby=Raw Ruby
 item.vultrom:ruby_scraps=Ruby Scraps
+item.vultrom:camera=Camera
 item.spawn_egg.entity.vultrom:jeweler.name=Jeweler Spawn Egg
 entity.vultrom:jeweler.name=Jeweler
 pack.name=Vultrom Behavior

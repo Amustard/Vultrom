@@ -19,6 +19,9 @@
 		},
 		"vultrom_ruby_scraps": {
 			"textures": "textures/items/ruby_scraps"
+		},
+		"vultrom_camera": {
+			"textures": "textures/items/camera"
 		}
 	}
 }

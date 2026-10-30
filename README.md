@@ -1,6 +1,6 @@
 # Vultrom (Bedrock)
 
-Minecraft **Bedrock** addon: rare **Sapphire** and **Ruby** ore, **Gemstone Cutter** workstation, and **Jeweler** trades (sapphires and rubies).
+Minecraft **Bedrock** addon: rare **Sapphire** and **Ruby** ore, **Gemstone Cutter** workstation, **Jeweler** trades (sapphires and rubies), and a **Camera** item.
 
 > Java Fabric (Security Guards, Camera, Trader Desk) lives on the [`java`](https://github.com/Amustard/Vultrom/tree/java) branch — including playable `dist/` jars.
 
@@ -31,7 +31,7 @@ Bedrock can keep loading an old copy of a pack, so remove the old ones before im
 1. Close the world. **Settings → Storage** (or *Global Resources / My Packs*) → delete **every** “Vultrom Behavior” and “Vultrom Resources” entry.
 2. Edit the world → **Behavior Packs** and **Resource Packs** → deactivate any Vultrom pack still listed under *Active*.
 3. Fully quit Minecraft, reopen, then import the new **Vultrom-0.1.9.mcaddon**.
-4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.9**.
+4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.9**. v0.1.9 was updated in place (build 2, adds the Camera): if you installed 0.1.9 before, delete the old packs and re-import; binding a Jeweler then reports **[Vultrom RP 1.0.9 (build 2) loaded]**.
 
 ## Source packs (dev)
 
@@ -58,10 +58,11 @@ python3 tools/bake_jeweler_skin.py
 
 1. Mine **Sapphire Ore**, **Ruby Ore** or **Deepslate Ruby Ore** with a **diamond or netherite pickaxe** → get **Raw Sapphire** / **Raw Ruby** (Fortune adds more; Silk Touch drops the ore block). Any other pickaxe, tool or bare hand only gets **Sapphire Scraps** / **Ruby Scraps** — worthless ("Sad to look at"). Every tool takes the same time: about 3 s (Deepslate Ruby Ore about 4.5 s).
 2. Craft a **Gemstone Cutter** (a gold stonecutter) at a crafting table: 1 diamond on top, 3 gold ingots in the middle row, 3 stone on the bottom row. Place it; it turns to face you. Right-click (tap) it with an empty hand or any other item → the **Gemstone Cutter** menu lists the raw gems you carry, with **Cut 1** and **Cut all** for each (Raw Sapphire → Sapphire, Raw Ruby → Ruby, 1-to-1); it reopens after each cut until you run out. Shortcut: hold **Raw Sapphire** or **Raw Ruby** and right-click → cuts 1 without the menu; **Sneak** + right-click cuts the **whole stack**. Sneak-clicking with a block still places it against the cutter.
-3. With a villager within 5 blocks, open the cutter's menu and press **Train a Jeweler** → that villager becomes its **Jeweler** (gold robe, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, the menu offers no second one. Chat confirms with **[Vultrom RP 1.0.9 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
+3. With a villager within 5 blocks, open the cutter's menu and press **Train a Jeweler** → that villager becomes its **Jeweler** (gold robe, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, the menu offers no second one. Chat confirms with **[Vultrom RP 1.0.9 (build 2) loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
 4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. After two sapphire sales he levels up and also buys **1 Ruby for 50–90 emeralds**. Once you sell him a Sapphire or a Ruby he holds that gem in front of his crossed arms (whichever was sold last), and when you close the trade screen he celebrates for about 8 seconds: hops and runs around, cheers, sparkles green and holds the gem up. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
+5. Craft a **Camera** at a crafting table: iron ingot / redstone / iron ingot on top, quartz / glass / quartz in the middle, iron ingot / redstone / iron ingot on the bottom. It doesn't do anything yet.
 
-Creative: **Sapphire Ore**, **Ruby Ore** and **Deepslate Ruby Ore** are in the **Nature** tab inside the **Ores** group.
+Creative: **Sapphire Ore**, **Ruby Ore** and **Deepslate Ruby Ore** are in the **Nature** tab inside the **Ores** group; the **Camera** is in the **Equipment** tab.
 
 ### Find nearest Sapphire / Ruby Ore
 
@@ -88,6 +89,7 @@ Searches loaded chunks up to **192 blocks** away and reports coordinates and dis
 | Gemstone Cutter | Gold stonecutter: 16×9×16 base plus a double-sided saw blade (`geometry.vultrom.gemstone_cutter`, alpha test), faces the player when placed (`minecraft:placement_direction` + `minecraft:transformation`). Pickaxe, hardness 3.5 like the vanilla stonecutter. Recipe `recipes/gemstone_cutter.json`: diamond / 3 gold ingots / 3 stone. Clicks handled by `beforeEvents.playerInteractWithBlock`; the menu is an `@minecraft/server-ui` **1.3.0** `ActionFormData` (a real stonecutter slot screen needs experiments). Jeweler workstation via script (Bedrock has no custom vanilla professions) |
 | Jeweler | Vanilla `villager_v2` behavior (Bedrock 1.21.50.7 sample) with one Jeweler profession — see below |
 | Jeweler trades | Tier 1: buys 1 Sapphire → **40–80 emeralds**. Tier 2 (10 trader XP = two sapphire sales): buys 1 **Ruby** → **50–90 emeralds**. Prices live in `Vultrom_BP/trading/jeweler_trades.json` (`quantity`, `max_uses`, `total_exp_required`) |
+| Camera | `vultrom:camera`, stacks to 1, Equipment tab. Recipe `recipes/camera.json` (shaped, crafting table): `IRI` / `QGQ` / `IRI` with I = iron ingot, R = redstone, Q = quartz, G = glass; no vanilla recipe uses that pattern. No use behavior yet |
 | Sapphire / Ruby Scraps | Dropped by the ore when not mined with a diamond/netherite pickaxe; no use |
 
 ### Why not `feature_rules`?
@@ -105,6 +107,7 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 | Ruby item | “Bunch o' Gems” ruby by Beatso & Zankor2 (third-party — check license before wider release) |
 | Ruby Ore / Deepslate Ruby Ore blocks | *Ruby Resource Pack* by Alex PNG (its emerald ore retextures; third-party — check license before wider release) |
 | Raw Ruby / Ruby Scraps items | **Placeholder**: the Raw Sapphire / Sapphire Scraps art recolored with the ruby icon's hue (`tools/make_ruby_placeholders.py`) |
+| Camera item | Mason's 256×256 camera art (`media/camera-item.png`) downscaled to 16×16 nearest-neighbor (one sample per 16-pixel cell) |
 | Jeweler look | Mason's v4 Jeweler outfit overlay (`art/jeweler-profession.png`, from `media/jeweler-outfit-v4.png`) baked onto the plains villager → `textures/entity/vultrom/jeweler.png` (64×128: skin on top, the sapphire and ruby icons he holds after a sale below) |
 | Gemstone Cutter block | Mason's vanilla-style cutter textures (`media/gemstone-cutter-vanilla-style/textures.zip` → `textures/blocks/gemstone_cutter_{top,side,other_side,bottom,saw}.png`). `side` is on the north/south base faces and `other_side` on east/west (the legacy Bedrock stonecutter's `stonecutter_side` / `stonecutter_other_side` layout); faces follow the block's placement rotation. The 9-pixel base shows the bottom 9 rows of the side textures (with the gem); the blade shows rows 1–7 of the round saw (its upper half, the hub gem just peeking out) |
 
@@ -154,3 +157,4 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 - **Gemstone Cutter menu:** right-click the cutter (empty hand or any non-gem item) for a stonecutter-style **Gemstone Cutter** menu (`@minecraft/server-ui` 1.3.0 `ActionFormData`; a real slot UI needs experiments). It lists only the raw gems you carry, each with **Cut 1** and **Cut all**, and reopens after a cut. **Train a Jeweler** moved into the menu: it shows when an unemployed villager is within 5 blocks. Holding a raw gem and right-clicking still cuts directly (sneak: the stack).
 - **Gemstone Cutter look:** Mason's vanilla-style textures (stone body, cyan gem, round saw) replace the gold ones; same shape, double-sided saw and rotation.
 - **Jeweler outfit:** Mason's v4 outfit replaces v3; the held sapphire and ruby icons are unchanged.
+- **Camera (build 2, updated in place):** new item `vultrom:camera` with a crafting recipe; no use behavior yet. Packs stay 1.0.9; the Jeweler bind chat line reads **[Vultrom RP 1.0.9 (build 2) loaded]**.
