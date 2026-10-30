@@ -2,11 +2,11 @@
 
 | File | What |
 |------|------|
-| **[Vultrom-0.1.8.mcaddon](./Vultrom-0.1.8.mcaddon)** | Both packs — easiest install |
-| [Vultrom_BP-0.1.8.mcpack](./Vultrom_BP-0.1.8.mcpack) | Behavior pack only |
-| [Vultrom_RP-0.1.8.mcpack](./Vultrom_RP-0.1.8.mcpack) | Resource pack only |
+| **[Vultrom-0.1.9.mcaddon](./Vultrom-0.1.9.mcaddon)** | Both packs — easiest install |
+| [Vultrom_BP-0.1.9.mcpack](./Vultrom_BP-0.1.9.mcpack) | Behavior pack only |
+| [Vultrom_RP-0.1.9.mcpack](./Vultrom_RP-0.1.9.mcpack) | Resource pack only |
 
-**Current:** v0.1.8 (packs **1.0.8**, Bedrock **1.21.50+**). Rebuild with `tools/build-dist.sh`.
+**Current:** v0.1.9 (packs **1.0.9**, Bedrock **1.21.50+**). Rebuild with `tools/build-dist.sh`.
 
 **Install:** download → double-click to import into Minecraft Bedrock → create/edit world → enable **both** packs → play. **No experiments required.**
 

@@ -23,6 +23,10 @@
 					"texture": "vultrom_gemstone_cutter_side",
 					"render_method": "alpha_test"
 				},
+				"other_side": {
+					"texture": "vultrom_gemstone_cutter_other_side",
+					"render_method": "alpha_test"
+				},
 				"up": {
 					"texture": "vultrom_gemstone_cutter_top",
 					"render_method": "alpha_test"

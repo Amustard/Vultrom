@@ -140,12 +140,51 @@ function makeServer() {
 		id: "minecraft:overworld",
 		getBlock: ({ x, y, z }) => ({ typeId: blocks.get(`${x},${y},${z}`) ?? (y < 0 ? "minecraft:deepslate" : "minecraft:stone"), location: { x, y, z } }),
 		setBlockType: ({ x, y, z }, id) => blocks.set(`${x},${y},${z}`, id),
-		getEntities: (q) => entities.filter((e) => e.typeId === q.type && e.isValid()),
+		getEntities: (q) =>
+			entities.filter(
+				(e) =>
+					e.typeId === q.type &&
+					e.isValid() &&
+					(!q.location || Math.hypot(e.location.x - q.location.x, e.location.y - q.location.y, e.location.z - q.location.z) <= q.maxDistance)
+			),
+		spawnEntity: (typeId, location) => {
+			const e = makeEntity(typeId, { ...location });
+			entities.push(e);
+			return e;
+		},
 		spawnItem: (stack, loc) => spawnedItems.push({ stack, loc }),
 		spawnParticle() {},
 		playSound() {}
 	};
 	const players = [];
+	const forms = [];
+	const ui = {
+		/** Answers each shown form; returns an ActionFormResponse-like object. */
+		respond: () => ({ canceled: true, cancelationReason: "UserClosed" }),
+		forms
+	};
+	class ActionFormData {
+		constructor() {
+			this.buttons = [];
+		}
+		title(t) {
+			this.titleText = t;
+			return this;
+		}
+		body(b) {
+			this.bodyText = b;
+			return this;
+		}
+		button(label, icon) {
+			this.buttons.push({ label, icon });
+			return this;
+		}
+		show(player) {
+			forms.push(this);
+			return Promise.resolve(ui.respond(this, player));
+		}
+	}
+	ui.module = { ActionFormData, FormCancelationReason: { UserBusy: "UserBusy", UserClosed: "UserClosed" } };
 	const known = new Set(["vultrom:sapphire_ore", "vultrom:ruby_ore", "vultrom:deepslate_ruby_ore", "vultrom:gemstone_cutter"]);
 	const server = {
 		world: {
@@ -160,16 +199,16 @@ function makeServer() {
 		ItemStack,
 		GameMode: { creative: "creative", survival: "survival" }
 	};
-	return { server, fire, tick, system, dimension, entities, players, blocks, spawnedItems };
+	return { server, ui, fire, tick, system, dimension, entities, players, blocks, spawnedItems };
 }
 
 let loadCount = 0;
 async function loadScript(env) {
 	globalThis.__mc = env.server;
-	const src = read("Vultrom_BP/scripts/main.js").replace(
-		/^import \{([^}]+)\} from "@minecraft\/server";/m,
-		"const {$1} = globalThis.__mc;"
-	);
+	globalThis.__ui = env.ui.module;
+	const src = read("Vultrom_BP/scripts/main.js")
+		.replace(/^import \{([^}]+)\} from "@minecraft\/server";/m, "const {$1} = globalThis.__mc;")
+		.replace(/^import \{([^}]+)\} from "@minecraft\/server-ui";/m, "const {$1} = globalThis.__ui;");
 	const dir = mkdtempSync(join(tmpdir(), "vultrom-"));
 	const file = join(dir, `main-${loadCount++}.mjs`);
 	writeFileSync(file, src);
@@ -180,6 +219,28 @@ async function loadScript(env) {
 	} finally {
 		console.log = origLog;
 	}
+}
+
+let entityIds = 0;
+function makeEntity(typeId, location) {
+	return {
+		id: `e${entityIds++}`,
+		typeId,
+		location,
+		valid: true,
+		nameTag: "",
+		isValid() {
+			return this.valid;
+		},
+		remove() {
+			this.valid = false;
+		},
+		setRotation() {},
+		getRotation: () => ({ x: 0, y: 90 }),
+		triggerEvent() {},
+		getProperty: () => undefined,
+		setProperty() {}
+	};
 }
 
 function makeJeweler(env, model, id = "j1") {
@@ -456,6 +517,126 @@ for (const [label, prep, viaLoad] of [
 		env.tick(1);
 		assert.match(String(player.messages[0]), /Sapphire Ore§r at/);
 	});
+}
+
+// ---------- 5. Gemstone Cutter menu (@minecraft/server-ui) ----------
+{
+	const env = makeServer();
+	await loadScript(env);
+	const { ItemStack } = env.server;
+	const flush = async (ticks = 1) => {
+		for (let i = 0; i < ticks; i++) {
+			env.tick(1);
+			await new Promise((r) => setImmediate(r));
+		}
+	};
+	const player = makePlayer(env, [undefined]);
+	const cutter = { typeId: "vultrom:gemstone_cutter", isValid: () => true, dimension: env.dimension, location: { x: 0, y: 64, z: 0 } };
+	/** Clicks the cutter; `answers` are button-label prefixes (or "busy") for each form shown. */
+	const click = async ({ sneak = false, answers = [] } = {}) => {
+		env.ui.forms.length = 0;
+		const queue = [...answers];
+		env.ui.respond = (form) => {
+			const want = queue.shift();
+			if (want === undefined) return { canceled: true, cancelationReason: "UserClosed" };
+			if (want === "busy") return { canceled: true, cancelationReason: "UserBusy" };
+			const selection = form.buttons.findIndex((b) => b.label.startsWith(want));
+			assert.ok(selection >= 0, `no button "${want}" in [${form.buttons.map((b) => b.label.split("\n")[0])}]`);
+			return { canceled: false, selection };
+		};
+		player.isSneaking = sneak;
+		const ev = { block: cutter, player, itemStack: player.slots[0], isFirstEvent: true };
+		env.fire("pib", ev);
+		await flush(30);
+		return ev;
+	};
+	const labels = (form) => form.buttons.map((b) => b.label.split("\n")[0]);
+
+	await (async () => {
+		const ev = await click();
+		check("menu: empty hand opens \"Gemstone Cutter\" with only Close when you carry no raw gems", () => {
+			assert.equal(ev.cancel, true);
+			assert.equal(env.ui.forms.length, 1);
+			assert.equal(env.ui.forms[0].titleText, "Gemstone Cutter");
+			assert.deepEqual(labels(env.ui.forms[0]), ["Close"]);
+			assert.match(env.ui.forms[0].bodyText, /no raw gems/);
+			assert.match(env.ui.forms[0].bodyText, /Bring a villager within 5 blocks/);
+		});
+	})();
+
+	player.slots[0] = new ItemStack("minecraft:stick", 1);
+	player.slots[3] = new ItemStack("vultrom:raw_sapphire", 3);
+	player.slots[5] = new ItemStack("vultrom:raw_ruby", 64);
+	player.slots[6] = new ItemStack("vultrom:raw_ruby", 6);
+	{
+		const ev = await click({ answers: ["Cut all Raw Ruby", "Cut 1 Raw Sapphire"] });
+		check("menu: holding any other item lists only the raw gems you carry, with Cut 1 / Cut all", () => {
+			assert.equal(ev.cancel, true);
+			assert.deepEqual(labels(env.ui.forms[0]), ["Cut 1 Raw Sapphire", "Cut all Raw Sapphire", "Cut 1 Raw Ruby", "Cut all Raw Ruby", "Close"]);
+			assert.equal(env.ui.forms[0].buttons[0].icon, "textures/items/raw_sapphire");
+			assert.match(env.ui.forms[0].buttons[2].label, /You have 70/);
+		});
+		check("menu: Cut all Raw Ruby cuts all 70 (in full stacks) and reopens with what's left", () => {
+			assert.equal(count(player, "vultrom:raw_ruby"), 0);
+			assert.equal(count(player, "vultrom:ruby"), 70);
+			assert.ok(player.slots.some((s) => s?.typeId === "vultrom:ruby" && s.amount === 64));
+			assert.deepEqual(labels(env.ui.forms[1]), ["Cut 1 Raw Sapphire", "Cut all Raw Sapphire", "Close"]);
+		});
+		check("menu: Cut 1 Raw Sapphire cuts exactly one and reopens", () => {
+			assert.equal(count(player, "vultrom:raw_sapphire"), 2);
+			assert.equal(count(player, "vultrom:sapphire"), 1);
+			assert.equal(env.ui.forms.length, 3);
+		});
+	}
+	{
+		await click({ answers: ["busy", "busy", "Cut all Raw Sapphire"] });
+		check("menu: retries while the player is busy, then works; closes when no raw gems are left", () => {
+			assert.equal(count(player, "vultrom:raw_sapphire"), 0);
+			assert.equal(count(player, "vultrom:sapphire"), 3);
+			assert.equal(env.ui.forms.length, 3);
+		});
+	}
+	{
+		player.slots[0] = new ItemStack("minecraft:cobblestone", 10);
+		const ev = await click({ sneak: true });
+		check("sneak-click with a block still places it (no menu, event not cancelled)", () => {
+			assert.notEqual(ev.cancel, true);
+			assert.equal(env.ui.forms.length, 0);
+		});
+		player.slots[0] = undefined;
+		await click({ sneak: true });
+		check("sneak-click with an empty hand opens the menu", () => assert.equal(env.ui.forms.length, 1));
+	}
+	{
+		player.slots[0] = new ItemStack("vultrom:raw_sapphire", 5);
+		const ev = await click();
+		check("shortcut: holding Raw Sapphire, a click cuts 1 without opening the menu", () => {
+			assert.equal(ev.cancel, true);
+			assert.equal(env.ui.forms.length, 0);
+			assert.equal(count(player, "vultrom:raw_sapphire"), 4);
+		});
+		await click({ sneak: true });
+		check("shortcut: sneak-click cuts the held stack", () => assert.equal(count(player, "vultrom:raw_sapphire"), 0));
+	}
+	{
+		const villager = makeEntity("minecraft:villager_v2", { x: 3, y: 64, z: 0 });
+		env.entities.push(villager);
+		player.slots[0] = undefined;
+		await click({ answers: ["Train a Jeweler"] });
+		check("menu: Train a Jeweler appears with a villager in range and converts it", () => {
+			assert.ok(labels(env.ui.forms[0]).includes("Train a Jeweler"));
+			assert.equal(villager.isValid(), false);
+			const jewelers = env.entities.filter((e) => e.typeId === "vultrom:jeweler" && e.isValid());
+			assert.equal(jewelers.length, 1);
+			assert.equal(jewelers[0].nameTag, "Jeweler");
+		});
+		env.entities.push(makeEntity("minecraft:villager_v2", { x: -2, y: 64, z: 1 }));
+		await click();
+		check("menu: an employed cutter offers no second Jeweler", () => {
+			assert.deepEqual(labels(env.ui.forms[0]), ["Close"]);
+			assert.match(env.ui.forms[0].bodyText, /employs a Jeweler/);
+		});
+	}
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

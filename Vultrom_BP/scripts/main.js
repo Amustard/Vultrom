@@ -4,14 +4,15 @@
  * !findsapphire / !findruby with Beta APIs).
  *
  * Ore uses Script API placement (no Custom Biomes / feature_rules experiment).
- * Cutter bind: Bedrock addons cannot register a true vanilla profession/POI, so
- * right-clicking the Gemstone Cutter replaces the nearest villager_v2 with
- * vultrom:jeweler (vanilla villager_v2 behavior with the Jeweler profession). Using the
- * cutter while holding Raw Sapphire or Raw Ruby cuts it into the gem (sneak cuts the whole
- * stack). After a player sells him a gem, the Jeweler holds that gem and celebrates for
- * ~8 seconds.
+ * Right-clicking the Gemstone Cutter opens its menu (@minecraft/server-ui): cut raw gems
+ * 1-to-1 and train a Jeweler. Bedrock addons cannot register a true vanilla profession/POI,
+ * so training replaces the nearest villager_v2 with vultrom:jeweler (vanilla villager_v2
+ * behavior with the Jeweler profession). Clicking while holding Raw Sapphire or Raw Ruby
+ * cuts it directly (sneak cuts the whole stack). After a player sells him a gem, the
+ * Jeweler holds that gem and celebrates for ~8 seconds.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
+import { ActionFormData, FormCancelationReason } from "@minecraft/server-ui";
 
 const CUTTER = "vultrom:gemstone_cutter";
 const JEWELER = "vultrom:jeweler";
@@ -35,8 +36,8 @@ const ORE_DROPS = new Map([
 ]);
 /** Gemstone Cutter recipes: raw gem → cut gem, 1:1. */
 const CUTS = new Map([
-	[RAW, { gem: SAPPHIRE, rawName: "Raw Sapphire", gemName: "§3Sapphire" }],
-	[RAW_RUBY, { gem: RUBY, rawName: "Raw Ruby", gemName: "§cRuby" }]
+	[RAW, { gem: SAPPHIRE, rawName: "Raw Sapphire", gemName: "§3Sapphire", icon: "textures/items/raw_sapphire" }],
+	[RAW_RUBY, { gem: RUBY, rawName: "Raw Ruby", gemName: "§cRuby", icon: "textures/items/raw_ruby" }]
 ]);
 const DEEPSLATE_HOSTS = new Set(["minecraft:deepslate", "minecraft:tuff"]);
 const REPLACEABLE = new Set([
@@ -131,30 +132,36 @@ function confirmJeweler(player) {
 	});
 }
 
-const CUTTER_HINT = "§bGemstone Cutter§r: right-click with §3Raw Sapphire§r or §cRaw Ruby§r to cut, sneak to cut all.";
+const FORM_BUSY_RETRIES = 10;
+const FORM_BUSY_RETRY_TICKS = 5;
+
+function cutterCenter(block) {
+	return { x: block.location.x + 0.5, y: block.location.y + 0.5, z: block.location.z + 0.5 };
+}
+
+/**
+ * Like a vanilla workstation, one cutter employs one Jeweler: "employed" while a Jeweler is
+ * within BIND_RADIUS, otherwise the nearest villager that could be trained (or undefined).
+ */
+function jewelerStatus(block) {
+	const loc = cutterCenter(block);
+	if (block.dimension.getEntities({ location: loc, maxDistance: BIND_RADIUS, type: JEWELER }).length > 0) {
+		return { employed: true };
+	}
+	return { employed: false, villager: nearestVillager(block.dimension, loc) };
+}
 
 /** Converts the nearest villager into this cutter's Jeweler; returns false if nobody was converted. */
 function bindJeweler(player, block) {
 	const dim = block.dimension;
-	const loc = {
-		x: block.location.x + 0.5,
-		y: block.location.y + 0.5,
-		z: block.location.z + 0.5
-	};
-
-	// Like a vanilla workstation, one cutter employs one Jeweler; using the cutter again
-	// must not convert the next villager that wanders by.
-	const claimed = dim.getEntities({ location: loc, maxDistance: BIND_RADIUS, type: JEWELER });
-	if (claimed.length > 0) {
-		player?.onScreenDisplay?.setActionBar(CUTTER_HINT);
+	const status = jewelerStatus(block);
+	if (status.employed) {
+		player?.onScreenDisplay?.setActionBar("§bGemstone Cutter§r: this cutter already employs a §3Jeweler§r.");
 		return false;
 	}
-
-	const villager = nearestVillager(dim, loc);
+	const villager = status.villager;
 	if (!villager) {
-		player?.onScreenDisplay?.setActionBar(
-			`${CUTTER_HINT}\nBring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`
-		);
+		player?.onScreenDisplay?.setActionBar(`§bGemstone Cutter§r: bring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`);
 		return false;
 	}
 
@@ -195,33 +202,127 @@ function bindJeweler(player, block) {
 	return true;
 }
 
-/** Cuts the raw gem in the player's selected slot: one, or the whole stack. */
-function cutRawGem(player, wholeStack) {
-	const container = player.getComponent("minecraft:inventory")?.container;
-	if (!container) return;
-	const slot = player.selectedSlotIndex;
-	const held = container.getItem(slot);
-	const cut = held && CUTS.get(held.typeId);
-	if (!cut) return;
-
-	const count = wholeStack ? held.amount : 1;
-	if (held.amount > count) {
-		held.amount -= count;
-		container.setItem(slot, held);
-	} else {
-		container.setItem(slot, undefined);
+/** Adds `count` of `typeId` to the player's inventory in full stacks; drops what doesn't fit. */
+function giveItems(player, container, typeId, count) {
+	while (count > 0) {
+		const amount = Math.min(count, 64);
+		count -= amount;
+		const leftover = container.addItem(new ItemStack(typeId, amount));
+		if (leftover) player.dimension.spawnItem(leftover, player.location);
 	}
-	const leftover = container.addItem(new ItemStack(cut.gem, count));
-	if (leftover) player.dimension.spawnItem(leftover, player.location);
+}
 
+function countItems(container, typeId) {
+	let total = 0;
+	for (let slot = 0; slot < container.size; slot++) {
+		const item = container.getItem(slot);
+		if (item?.typeId === typeId) total += item.amount;
+	}
+	return total;
+}
+
+/** Removes up to `count` of `typeId`, selected slot first; returns how many were removed. */
+function takeItems(container, typeId, count, firstSlot) {
+	let taken = 0;
+	const order = [firstSlot, ...Array.from({ length: container.size }, (_, i) => i).filter((i) => i !== firstSlot)];
+	for (const slot of order) {
+		if (taken >= count) break;
+		const item = container.getItem(slot);
+		if (item?.typeId !== typeId) continue;
+		const n = Math.min(item.amount, count - taken);
+		taken += n;
+		if (item.amount > n) {
+			item.amount -= n;
+			container.setItem(slot, item);
+		} else {
+			container.setItem(slot, undefined);
+		}
+	}
+	return taken;
+}
+
+/** Cuts `amount` raw gems of type `raw` from anywhere in the inventory; returns the number cut. */
+function cutGems(player, raw, amount) {
+	const cut = CUTS.get(raw);
+	const container = player.getComponent("minecraft:inventory")?.container;
+	if (!cut || !container) return 0;
+	const count = takeItems(container, raw, amount, player.selectedSlotIndex);
+	if (count === 0) return 0;
+	giveItems(player, container, cut.gem, count);
 	try {
 		player.playSound("block.stonecutter.use");
 	} catch (_) {
 		/* cosmetic only */
 	}
-	player.onScreenDisplay?.setActionBar(
-		`§bGemstone Cutter§r: cut ${count} ${cut.rawName} into ${cut.gemName} ×${count}§r.`
+	player.onScreenDisplay?.setActionBar(`§bGemstone Cutter§r: cut ${count} ${cut.rawName} into ${cut.gemName} ×${count}§r.`);
+	return count;
+}
+
+/** Shortcut: cuts the raw gem in the selected slot, one or the whole stack. */
+function cutHeldGem(player, wholeStack) {
+	const held = player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex);
+	if (!held || !CUTS.has(held.typeId)) return;
+	cutGems(player, held.typeId, wholeStack ? held.amount : 1);
+}
+
+/** Shows `form`, retrying while the player is still busy with the click that opened it. */
+async function showForm(player, form) {
+	for (let attempt = 0; ; attempt++) {
+		const response = await form.show(player);
+		if (!response.canceled || response.cancelationReason !== FormCancelationReason.UserBusy) return response;
+		if (attempt >= FORM_BUSY_RETRIES || !player.isValid()) return response;
+		await new Promise((resolve) => system.runTimeout(resolve, FORM_BUSY_RETRY_TICKS));
+	}
+}
+
+/**
+ * The stonecutter-style menu: Cut 1 / Cut all for each raw gem the player carries, plus
+ * training a Jeweler when a villager is near and the cutter has none. Reopens after a cut.
+ */
+async function openCutterMenu(player, block) {
+	const container = player.getComponent("minecraft:inventory")?.container;
+	if (!container) return;
+	const form = new ActionFormData().title("Gemstone Cutter");
+	/** @type {(() => boolean | void)[]} */
+	const actions = [];
+	const body = [];
+
+	for (const [raw, cut] of CUTS) {
+		const have = countItems(container, raw);
+		if (have === 0) continue;
+		form.button(`Cut 1 ${cut.rawName}\n§8You have ${have}`, cut.icon);
+		actions.push(() => cutGems(player, raw, 1) > 0);
+		form.button(`Cut all ${cut.rawName}\n§8All ${have} at once`, cut.icon);
+		actions.push(() => cutGems(player, raw, countItems(container, raw)) > 0);
+	}
+	body.push(
+		actions.length > 0
+			? "Cuts raw gems 1-to-1."
+			: "You have no raw gems. Mine Sapphire or Ruby Ore with a diamond or netherite pickaxe."
 	);
+
+	const status = jewelerStatus(block);
+	if (status.employed) {
+		body.push("§3This cutter employs a Jeweler.§r");
+	} else if (status.villager) {
+		form.button("Train a Jeweler\n§8Nearest villager within 5 blocks", "textures/items/emerald");
+		actions.push(() => {
+			bindJeweler(player, block);
+		});
+	} else {
+		body.push(`Bring a villager within ${BIND_RADIUS} blocks to train a §3Jeweler§r.`);
+	}
+	form.button("Close");
+	actions.push(() => {});
+	form.body(body.join("\n\n"));
+
+	const response = await showForm(player, form);
+	if (response.canceled || response.selection === undefined) return;
+	if (!player.isValid() || !block.isValid() || block.typeId !== CUTTER) return;
+	const reopen = actions[response.selection]?.();
+	if (reopen === true && [...CUTS.keys()].some((raw) => countItems(container, raw) > 0)) {
+		await openCutterMenu(player, block);
+	}
 }
 
 // The cutter is deliberately not an interactive block (no crafting_table or custom
@@ -232,22 +333,19 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 	if (block?.typeId !== CUTTER || !player) return;
 	const holdingRaw = CUTS.has(event.itemStack?.typeId);
 	const sneaking = player.isSneaking;
-	// Behave like a workstation: a plain click never places or uses the held item on the
-	// cutter; sneak-clicking with a block still places it against the cutter.
-	if (holdingRaw || !sneaking) event.cancel = true;
+	// Behave like a workstation: sneak-clicking with a block or other item still places or
+	// uses it against the cutter; every other click is the cutter's.
+	if (sneaking && !holdingRaw && event.itemStack !== undefined) return;
+	event.cancel = true;
 	if (!event.isFirstEvent) return;
-	const holdingOther = !holdingRaw && event.itemStack !== undefined;
-	if (sneaking && holdingOther) return;
 
 	system.run(() => {
 		try {
 			if (!player.isValid() || !block.isValid() || block.typeId !== CUTTER) return;
 			if (holdingRaw) {
-				cutRawGem(player, sneaking);
-			} else if (sneaking) {
-				player.onScreenDisplay?.setActionBar(CUTTER_HINT);
+				cutHeldGem(player, sneaking);
 			} else {
-				bindJeweler(player, block);
+				openCutterMenu(player, block).catch((err) => console.warn("[vultrom] gemstone cutter menu failed:", err));
 			}
 		} catch (err) {
 			console.warn("[vultrom] gemstone cutter failed:", err);

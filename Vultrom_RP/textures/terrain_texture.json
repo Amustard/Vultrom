@@ -16,6 +16,9 @@
 		"vultrom_gemstone_cutter_side": {
 			"textures": "textures/blocks/gemstone_cutter_side"
 		},
+		"vultrom_gemstone_cutter_other_side": {
+			"textures": "textures/blocks/gemstone_cutter_other_side"
+		},
 		"vultrom_gemstone_cutter_top": {
 			"textures": "textures/blocks/gemstone_cutter_top"
 		},
