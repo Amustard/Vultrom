@@ -1,0 +1,755 @@
+{
+	"format_version": "1.21.20",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "vultrom:photo_tile64",
+			"is_spawnable": false,
+			"is_summonable": true,
+			"properties": {
+				"vultrom:p0": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p1": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p2": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p3": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p4": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p5": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p6": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p7": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p8": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p9": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p10": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p11": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p12": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p13": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p14": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p15": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p16": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p17": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p18": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p19": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p20": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p21": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p22": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p23": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p24": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p25": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p26": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p27": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p28": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p29": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p30": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p31": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				}
+			}
+		},
+		"components": {
+			"minecraft:type_family": {
+				"family": [
+					"vultrom_photo",
+					"inanimate"
+				]
+			},
+			"minecraft:collision_box": {
+				"width": 0.1,
+				"height": 0.1
+			},
+			"minecraft:custom_hit_test": {
+				"hitboxes": [
+					{
+						"width": 1,
+						"height": 1,
+						"pivot": [
+							0,
+							0.5,
+							0
+						]
+					}
+				]
+			},
+			"minecraft:physics": {
+				"has_gravity": false,
+				"has_collision": false
+			},
+			"minecraft:pushable": {
+				"is_pushable": false,
+				"is_pushable_by_piston": false
+			},
+			"minecraft:knockback_resistance": {
+				"value": 1
+			},
+			"minecraft:health": {
+				"value": 1,
+				"max": 1
+			},
+			"minecraft:damage_sensor": {
+				"triggers": [
+					{
+						"cause": "all",
+						"deals_damage": false
+					}
+				]
+			},
+			"minecraft:fire_immune": true,
+			"minecraft:persistent": {},
+			"minecraft:interact": {
+				"interactions": [
+					{
+						"on_interact": {
+							"filters": {
+								"test": "is_family",
+								"subject": "other",
+								"value": "player"
+							},
+							"event": "vultrom:view_photo",
+							"target": "self"
+						},
+						"interact_text": "action.interact.vultrom.view_photo"
+					}
+				]
+			}
+		},
+		"events": {
+			"vultrom:view_photo": {},
+			"vultrom:tile_0": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_0"
+					]
+				}
+			},
+			"vultrom:tile_1": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_1"
+					]
+				}
+			},
+			"vultrom:tile_2": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_2"
+					]
+				}
+			},
+			"vultrom:tile_3": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_3"
+					]
+				}
+			},
+			"vultrom:tile_4": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_4"
+					]
+				}
+			},
+			"vultrom:tile_5": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_5"
+					]
+				}
+			},
+			"vultrom:tile_6": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_6"
+					]
+				}
+			},
+			"vultrom:tile_7": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_7"
+					]
+				}
+			},
+			"vultrom:tile_8": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_8"
+					]
+				}
+			},
+			"vultrom:tile_9": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_9"
+					]
+				}
+			},
+			"vultrom:tile_10": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_10"
+					]
+				}
+			},
+			"vultrom:tile_11": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_11"
+					]
+				}
+			},
+			"vultrom:tile_12": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_12"
+					]
+				}
+			},
+			"vultrom:tile_13": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_13"
+					]
+				}
+			},
+			"vultrom:tile_14": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_14"
+					]
+				}
+			},
+			"vultrom:tile_15": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_15"
+					]
+				}
+			},
+			"vultrom:tile_16": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_16"
+					]
+				}
+			},
+			"vultrom:tile_17": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_17"
+					]
+				}
+			},
+			"vultrom:tile_18": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_18"
+					]
+				}
+			},
+			"vultrom:tile_19": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_19"
+					]
+				}
+			},
+			"vultrom:tile_20": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_20"
+					]
+				}
+			},
+			"vultrom:tile_21": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_21"
+					]
+				}
+			},
+			"vultrom:tile_22": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_22"
+					]
+				}
+			},
+			"vultrom:tile_23": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_23"
+					]
+				}
+			},
+			"vultrom:tile_24": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_24"
+					]
+				}
+			},
+			"vultrom:tile_25": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_25"
+					]
+				}
+			},
+			"vultrom:tile_26": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_26"
+					]
+				}
+			},
+			"vultrom:tile_27": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_27"
+					]
+				}
+			},
+			"vultrom:tile_28": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_28"
+					]
+				}
+			},
+			"vultrom:tile_29": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_29"
+					]
+				}
+			},
+			"vultrom:tile_30": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_30"
+					]
+				}
+			},
+			"vultrom:tile_31": {
+				"add": {
+					"component_groups": [
+						"vultrom:tile_31"
+					]
+				}
+			}
+		},
+		"component_groups": {
+			"vultrom:tile_0": {
+				"minecraft:variant": {
+					"value": 0
+				}
+			},
+			"vultrom:tile_1": {
+				"minecraft:variant": {
+					"value": 1
+				}
+			},
+			"vultrom:tile_2": {
+				"minecraft:variant": {
+					"value": 2
+				}
+			},
+			"vultrom:tile_3": {
+				"minecraft:variant": {
+					"value": 3
+				}
+			},
+			"vultrom:tile_4": {
+				"minecraft:variant": {
+					"value": 4
+				}
+			},
+			"vultrom:tile_5": {
+				"minecraft:variant": {
+					"value": 5
+				}
+			},
+			"vultrom:tile_6": {
+				"minecraft:variant": {
+					"value": 6
+				}
+			},
+			"vultrom:tile_7": {
+				"minecraft:variant": {
+					"value": 7
+				}
+			},
+			"vultrom:tile_8": {
+				"minecraft:variant": {
+					"value": 8
+				}
+			},
+			"vultrom:tile_9": {
+				"minecraft:variant": {
+					"value": 9
+				}
+			},
+			"vultrom:tile_10": {
+				"minecraft:variant": {
+					"value": 10
+				}
+			},
+			"vultrom:tile_11": {
+				"minecraft:variant": {
+					"value": 11
+				}
+			},
+			"vultrom:tile_12": {
+				"minecraft:variant": {
+					"value": 12
+				}
+			},
+			"vultrom:tile_13": {
+				"minecraft:variant": {
+					"value": 13
+				}
+			},
+			"vultrom:tile_14": {
+				"minecraft:variant": {
+					"value": 14
+				}
+			},
+			"vultrom:tile_15": {
+				"minecraft:variant": {
+					"value": 15
+				}
+			},
+			"vultrom:tile_16": {
+				"minecraft:variant": {
+					"value": 16
+				}
+			},
+			"vultrom:tile_17": {
+				"minecraft:variant": {
+					"value": 17
+				}
+			},
+			"vultrom:tile_18": {
+				"minecraft:variant": {
+					"value": 18
+				}
+			},
+			"vultrom:tile_19": {
+				"minecraft:variant": {
+					"value": 19
+				}
+			},
+			"vultrom:tile_20": {
+				"minecraft:variant": {
+					"value": 20
+				}
+			},
+			"vultrom:tile_21": {
+				"minecraft:variant": {
+					"value": 21
+				}
+			},
+			"vultrom:tile_22": {
+				"minecraft:variant": {
+					"value": 22
+				}
+			},
+			"vultrom:tile_23": {
+				"minecraft:variant": {
+					"value": 23
+				}
+			},
+			"vultrom:tile_24": {
+				"minecraft:variant": {
+					"value": 24
+				}
+			},
+			"vultrom:tile_25": {
+				"minecraft:variant": {
+					"value": 25
+				}
+			},
+			"vultrom:tile_26": {
+				"minecraft:variant": {
+					"value": 26
+				}
+			},
+			"vultrom:tile_27": {
+				"minecraft:variant": {
+					"value": 27
+				}
+			},
+			"vultrom:tile_28": {
+				"minecraft:variant": {
+					"value": 28
+				}
+			},
+			"vultrom:tile_29": {
+				"minecraft:variant": {
+					"value": 29
+				}
+			},
+			"vultrom:tile_30": {
+				"minecraft:variant": {
+					"value": 30
+				}
+			},
+			"vultrom:tile_31": {
+				"minecraft:variant": {
+					"value": 31
+				}
+			}
+		}
+	}
+}

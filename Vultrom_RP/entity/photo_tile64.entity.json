@@ -1,0 +1,30 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "vultrom:photo_tile64",
+			"materials": {
+				"default": "entity"
+			},
+			"textures": {
+				"default": "textures/entity/vultrom/photo_palette"
+			},
+			"geometry": {
+				"default": "geometry.vultrom.photo_tile64"
+			},
+			"animations": {
+				"pixels": "animation.vultrom.photo_tile64.pixels"
+			},
+			"scripts": {
+				"animate": [
+					{
+						"pixels": "q.distance_from_camera < 32"
+					}
+				]
+			},
+			"render_controllers": [
+				"controller.render.vultrom_photo_tile64"
+			]
+		}
+	}
+}

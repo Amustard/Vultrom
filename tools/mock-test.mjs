@@ -141,6 +141,7 @@ function makeServer() {
 		}
 		setDynamicProperty(k, v) {
 			if (!NON_STACKABLE.has(this.typeId)) throw new Error(`${this.typeId} is stackable`);
+			if (typeof v === "string" && v.length > 32767) throw new Error(`dynamic property ${k} is ${v.length} characters`);
 			this.dyn[k] = v;
 		}
 		getDynamicProperty(k) {
@@ -288,6 +289,7 @@ async function loadScript(env) {
 	} finally {
 		console.log = origLog;
 	}
+	return dir;
 }
 
 let entityIds = 0;
@@ -313,7 +315,10 @@ function makeEntity(typeId, location) {
 		getRotation() {
 			return this.rot;
 		},
-		triggerEvent() {},
+		events: [],
+		triggerEvent(ev) {
+			this.events.push(ev);
+		},
 		getProperty(n) {
 			return this.props[n];
 		},
@@ -324,6 +329,7 @@ function makeEntity(typeId, location) {
 			return this.dyn[k];
 		},
 		setDynamicProperty(k, v) {
+			if (typeof v === "string" && v.length > 32767) throw new Error(`dynamic property ${k} is ${v.length} characters`);
 			this.dyn[k] = v;
 		}
 	};
@@ -744,14 +750,33 @@ for (const [label, prep, viaLoad] of [
 // ---------- 6. Camera → Photo → viewer → framed picture ----------
 const core = await import(pathToFileURL(join(ROOT, "Vultrom_BP/scripts/photo_core.js")).href);
 const { PALETTE } = await import(pathToFileURL(join(ROOT, "Vultrom_BP/scripts/photo_palette.js")).href);
-const { GLYPH, FRAME, FRAME_COLORS } = await import(pathToFileURL(join(ROOT, "tools/photo-layout.mjs")).href);
+const { GLYPH, FRAME, FRAME_COLORS, FRAME_DETAIL_DISTANCE, framePixel } = await import(pathToFileURL(join(ROOT, "tools/photo-layout.mjs")).href);
 const { Image } = await import(pathToFileURL(join(ROOT, "tools/png.mjs")).href);
 const chan = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
-let photoPixels;
-let photoMeta;
+/** Palette indices drawn by viewer glyph lines (`§f` + half-block glyphs). */
+function decodeLines(lines) {
+	const w = [...lines[0].slice(2)].length;
+	const out = new Uint8Array(w * lines.length * 2);
+	lines.forEach((line, row) => {
+		assert.ok(line.startsWith("§f"));
+		const glyphs = [...line.slice(2)];
+		assert.equal(glyphs.length, w);
+		glyphs.forEach((ch, x) => {
+			const g = ch.codePointAt(0) - 0xe200;
+			assert.ok(g >= 0 && g < 4096);
+			out[row * 2 * w + x] = g >> 6;
+			out[(row * 2 + 1) * w + x] = g & 63;
+		});
+	});
+	return out;
+}
+const tilesOf = (env, type) => env.entities.filter((e) => e.typeId === type && e.isValid());
+let photo64;
+let photo32;
 {
 	const env = makeServer();
-	await loadScript(env);
+	const dir = await loadScript(env);
+	const camera = await import(pathToFileURL(join(dir, "camera.js")).href);
 	const { ItemStack } = env.server;
 	const flush = async (ticks = 1) => {
 		for (let i = 0; i < ticks; i++) {
@@ -816,6 +841,15 @@ let photoMeta;
 	place("minecraft:cow", 8, -4);
 	place("minecraft:sheep", 15, 4);
 	place("minecraft:item", 3, 0);
+	const photos = () => player.slots.filter((s) => s?.typeId === "vultrom:photo");
+	const waitForPhoto = async (count, limit = 400) => {
+		let ticks = 0;
+		while (photos().length < count && ticks < limit) {
+			await flush(1);
+			ticks++;
+		}
+		return ticks;
+	};
 
 	env.fire("use", { source: player, itemStack: player.slots[0] });
 	const raysAtShutter = env.scene.rays;
@@ -827,49 +861,51 @@ let photoMeta;
 		assert.deepEqual(player.cooldowns, [["vultrom_camera", 40]]);
 		assert.equal(raysAtShutter, 0, "no rays on the shutter tick");
 	});
-	let ticks = 1;
-	while (!player.slots.some((s) => s?.typeId === "vultrom:photo") && ticks < 200) {
-		await flush(1);
-		ticks++;
-	}
-	const photo = player.slots.find((s) => s?.typeId === "vultrom:photo");
-	check("camera: the 32×32 grid develops over several ticks into a Photo", () => {
+	const ticks = 1 + (await waitForPhoto(1));
+	const photo = photos()[0];
+	check("camera: the 64×64 grid develops over several ticks into a Photo, with a progress bar", () => {
 		assert.ok(photo, "no photo");
-		assert.ok(ticks >= 4, `developed in ${ticks} ticks`);
-		assert.ok(player.actionBar.some((m) => /Developing… \d+%/.test(m)));
+		assert.ok(ticks >= 16, `developed in ${ticks} ticks`);
+		const progress = player.actionBar.filter((m) => m.startsWith("§7Developing…"));
+		assert.ok(progress.length >= 8, `${progress.length} progress updates`);
+		assert.match(progress[0], /^§7Developing… §f\|*§8\|* §7\d+%$/);
+		for (const m of progress) assert.equal((m.match(/\|/g) ?? []).length, 20);
 		assert.match(player.actionBar.at(-1), /Photo #1 developed/);
 		assert.equal(env.worldDyn["vultrom:photo_count"], 1);
 		console.log(`     ${env.scene.rays} rays over ${ticks} ticks`);
 	});
-	photoPixels = core.decodePixels(photo?.dyn["vultrom:pixels"]);
-	photoMeta = JSON.parse(photo?.dyn["vultrom:photo"] ?? "{}");
-	check("photo: pixels stored on the item (1024 palette indices) with who/where/when lore", () => {
-		assert.equal(photo.dyn["vultrom:pixels"].length, 1024);
-		assert.ok(photoPixels);
-		assert.deepEqual(photo.lore, ["§7Taken by §fMason", "§7At §f0 64 0 §7(Overworld)", "§7Day 5, 17:12", "§8Photo #1"]);
-		assert.deepEqual(photoMeta, { id: 1, by: "Mason", x: 0, y: 64, z: 0, dim: "minecraft:overworld", day: 5, time: 11200 });
+	photo64 = core.decodePixels(photo?.dyn["vultrom:pixels"]);
+	const photoMeta = JSON.parse(photo?.dyn["vultrom:photo"] ?? "{}");
+	check("photo: 4096 palette indices on the item with who/where/when/size lore", () => {
+		assert.equal(photo.dyn["vultrom:pixels"].length, 4096);
+		assert.ok(photo64);
+		assert.deepEqual(photo.lore, ["§7Taken by §fMason", "§7At §f0 64 0 §7(Overworld)", "§7Day 5, 17:12", "§8Photo #1 · 64x64"]);
+		assert.deepEqual(photoMeta, { id: 1, size: 64, by: "Mason", x: 0, y: 64, z: 0, dim: "minecraft:overworld", day: 5, time: 11200 });
 	});
-	const px = (x, y) => chan(PALETTE[photoPixels[y * 32 + x]]);
+	check("storage: a 64×64 photo uses 4096 of the 32,767 characters a dynamic property allows", () => {
+		assert.ok(photo.dyn["vultrom:pixels"].length + photo.dyn["vultrom:photo"].length < core.MAX_PROPERTY_LENGTH / 7);
+	});
+	const px = (x, y) => chan(PALETTE[photo64[y * 64 + x]]);
 	const region = (x0, y0, x1, y1, pred) => {
 		let n = 0;
 		for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) n += pred(px(x, y)) ? 1 : 0;
 		return n / ((x1 - x0) * (y1 - y0));
 	};
 	check("photo: sky on top, meadow green at the bottom, the pond blue, the low sun bright", () => {
-		assert.ok(region(0, 0, 32, 4, ([r, g, b]) => b > r && b > 120) > 0.6, "top rows should be sky");
-		assert.ok(region(0, 28, 32, 32, ([r, g, b]) => g > r && g > b) > 0.5, "bottom rows should be grass");
+		assert.ok(region(0, 0, 64, 8, ([r, g, b]) => b > r && b > 120) > 0.6, "top rows should be sky");
+		assert.ok(region(0, 56, 64, 64, ([r, g, b]) => g > r && g > b) > 0.5, "bottom rows should be grass");
 		let blue = 0;
 		let sun = 0;
-		for (let i = 0; i < 1024; i++) {
-			const [r, g, b] = chan(PALETTE[photoPixels[i]]);
-			if (b > r + 40 && b > g && i >= 16 * 32) blue++;
+		for (let i = 0; i < 4096; i++) {
+			const [r, g, b] = chan(PALETTE[photo64[i]]);
+			if (b > r + 40 && b > g && i >= 32 * 64) blue++;
 			if (r > 230 && g > 220) sun++;
 		}
-		assert.ok(blue > 15, `pond pixels: ${blue}`);
-		assert.ok(sun >= 1, "sun disc");
+		assert.ok(blue > 60, `pond pixels: ${blue}`);
+		assert.ok(sun >= 4, `sun disc: ${sun} pixels`);
 	});
 	/** Image pixel where world point (F forward, R right, y) lands, using the camera's projection. */
-	const project = (F, R, y) => {
+	const project = (F, R, y, size = 64) => {
 		const eye = player.getHeadLocation();
 		const f = player.getViewDirection();
 		const r = { x: -Math.cos(yaw), y: 0, z: -Math.sin(yaw) };
@@ -877,7 +913,7 @@ let photoMeta;
 		const p = { x: 0.5 + F * fwd[0] + R * right[0] - eye.x, y: y - eye.y, z: 0.5 + F * fwd[1] + R * right[1] - eye.z };
 		const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 		const t = Math.tan((35 * Math.PI) / 180) * dot(p, f);
-		return [Math.floor(((dot(p, r) / t + 1) / 2) * 32), Math.floor(((1 - dot(p, u) / Math.hypot(u.x, u.y, u.z) / t) / 2) * 32)];
+		return [Math.floor(((dot(p, r) / t + 1) / 2) * size), Math.floor(((1 - dot(p, u) / Math.hypot(u.x, u.y, u.z) / t) / 2) * size)];
 	};
 	check("photo: mobs show up (brown cow, white sheep); dropped items don't", () => {
 		const [cr, cg, cb] = px(...project(8, -4, 64.7));
@@ -898,99 +934,126 @@ let photoMeta;
 	env.fire("use", { source: player, itemStack: player.slots[0] });
 	await flush(1);
 	check("camera: works again after the cooldown", () => assert.equal(player.fades.length, 2));
+	await waitForPhoto(2);
 	await flush(40);
 
 	{
+		// Every ray takes 0.25 ms (far slower than Bedrock); two players develop at once.
 		const slow = makeServer();
 		await loadScript(slow);
 		const p2 = makePlayer(slow, [new slow.server.ItemStack("vultrom:camera", 1)]);
+		const p3 = makePlayer(slow, [new slow.server.ItemStack("vultrom:camera", 1)]);
+		p3.id = "p3";
 		slow.scene.at = env.scene.at;
-		slow.scene.slowRayMs = 0.4;
+		slow.scene.slowRayMs = 0.25;
 		p2.rot = { x: 4, y: 110 };
+		p3.rot = { x: 10, y: 60 };
 		slow.fire("use", { source: p2, itemStack: p2.slots[0] });
+		slow.fire("use", { source: p3, itemStack: p3.slots[0] });
 		slow.tick(1);
+		const done = (p) => p.slots.some((s) => s?.typeId === "vultrom:photo");
 		let worst = 0;
 		let n = 0;
-		while (!p2.slots.some((s) => s?.typeId === "vultrom:photo") && n < 400) {
+		const finished = {};
+		while (!(done(p2) && done(p3)) && n < 3000) {
 			const t0 = performance.now();
 			slow.tick(1);
 			worst = Math.max(worst, performance.now() - t0);
 			n++;
+			for (const p of [p2, p3]) if (done(p) && !finished[p.id]) finished[p.id] = n;
 		}
-		check("camera: slow raycasts stay within the per-tick budget (lag-free) and still finish", () => {
-			assert.ok(p2.slots.some((s) => s?.typeId === "vultrom:photo"), "never finished");
+		check("camera: slow raycasts stay within the shared per-tick budget (lag-free) and both photos finish", () => {
+			assert.ok(done(p2) && done(p3), "never finished");
 			assert.ok(worst < 9, `worst tick ${worst.toFixed(1)} ms`);
-			console.log(`     0.4 ms/ray: ${n} ticks, worst tick ${worst.toFixed(1)} ms`);
+			assert.ok(Math.abs(finished.p1 - finished.p3) < 0.25 * n, `uneven: ${finished.p1} vs ${finished.p3} ticks`);
+			console.log(`     0.25 ms/ray, two players: ${n} ticks, worst tick ${worst.toFixed(1)} ms`);
 		});
 	}
 
-	// viewer
+	// viewer: overview + quarters
 	player.selectedSlotIndex = player.slots.indexOf(photo);
 	env.ui.forms.length = 0;
-	env.ui.respond = () => ({ canceled: true, cancelationReason: "UserClosed" });
+	const answers = [0, 0, 3, 1];
+	env.ui.respond = () => (answers.length ? { canceled: false, selection: answers.shift() } : { canceled: true, cancelationReason: "UserClosed" });
 	env.fire("use", { source: player, itemStack: photo });
-	await flush(2);
-	const viewer = env.ui.forms[0];
-	check("viewer: using a Photo opens it as 16 lines of 32 half-block glyphs plus its info", () => {
-		assert.equal(viewer.titleText, "Photo #1");
-		const lines = viewer.bodyText.split("\n");
-		const pic = lines.slice(0, 16);
-		const decoded = new Uint8Array(1024);
-		pic.forEach((line, row) => {
-			assert.ok(line.startsWith("§f"));
-			const glyphs = [...line.slice(2)];
-			assert.equal(glyphs.length, 32);
-			glyphs.forEach((ch, x) => {
-				const g = ch.codePointAt(0) - 0xe200;
-				assert.ok(g >= 0 && g < 4096);
-				decoded[row * 2 * 32 + x] = g >> 6;
-				decoded[(row * 2 + 1) * 32 + x] = g & 63;
-			});
-		});
-		assert.deepEqual(decoded, photoPixels);
-		assert.deepEqual(lines.slice(17), ["§7Taken by §fMason", "§7At §f0 64 0 §7(Overworld)", "§7Day 5, 17:12"]);
+	await flush(3);
+	const [overview, topLeft, overview2, bottomRight] = env.ui.forms;
+	check("viewer: a 64×64 Photo opens as a 32×32 overview (16 glyph lines) plus its info and quarter buttons", () => {
+		assert.equal(overview.titleText, "Photo #1");
+		const lines = overview.bodyText.split("\n");
+		assert.deepEqual(decodeLines(lines.slice(0, 16)), core.downsample(photo64, 64));
+		assert.deepEqual(lines.slice(17, 20), ["§7Taken by §fMason", "§7At §f0 64 0 §7(Overworld)", "§7Day 5, 17:12"]);
+		assert.deepEqual(
+			overview.buttons.map((b) => b.label),
+			["Top left", "Top right", "Bottom left", "Bottom right", "Close"]
+		);
 	});
-	check("viewer: fits the 225-px form width (5 px per glyph)", () => assert.ok(32 * GLYPH.advance <= 200));
+	check("viewer: each quarter shows its 32×32 pixels at full detail; Back returns to the overview", () => {
+		assert.equal(env.ui.forms.length, 4);
+		assert.equal(topLeft.titleText, "Photo #1 · Top left");
+		assert.deepEqual(decodeLines(topLeft.bodyText.split("\n")), core.crop(photo64, 64, 0, 0, 32));
+		assert.deepEqual(topLeft.buttons.map((b) => b.label), ["Back", "Close"]);
+		assert.equal(overview2.bodyText, overview.bodyText);
+		assert.equal(bottomRight.titleText, "Photo #1 · Bottom right");
+		assert.deepEqual(decodeLines(bottomRight.bodyText.split("\n")), core.crop(photo64, 64, 32, 32, 32));
+	});
+	check("viewer: every page is 32 glyphs wide (160 px fits the ~225-px form; 64 glyphs would need 320)", () => {
+		for (const form of env.ui.forms) for (const line of form.bodyText.split("\n").filter((l) => l.startsWith("§f"))) assert.equal([...line.slice(2)].length, 32);
+		assert.ok(32 * GLYPH.advance <= 200 && 64 * GLYPH.advance > 225);
+	});
+	env.ui.respond = () => ({ canceled: true, cancelationReason: "UserClosed" });
 
 	// hanging
 	const wall = { typeId: "minecraft:stone", location: { x: 10, y: 64, z: 10 }, dimension: env.dimension, isValid: () => true };
 	env.blocks.set("10,64,9", "minecraft:air");
-	const useOn = async (face, { sneak = false } = {}) => {
+	const useOn = async (face, { sneak = false, block = wall } = {}) => {
 		env.ui.forms.length = 0;
 		player.isSneaking = sneak;
-		const ev = { block: wall, player, itemStack: player.slots[player.selectedSlotIndex], blockFace: face, isFirstEvent: true };
+		const ev = { block, player, itemStack: player.slots[player.selectedSlotIndex], blockFace: face, isFirstEvent: true };
 		env.fire("pib", ev);
 		await flush(2);
 		player.isSneaking = false;
 		return ev;
 	};
+	await flush(5);
 	await useOn("Up");
 	check("hang: using a Photo on the top of a block views it instead", () => {
 		assert.equal(env.ui.forms.length, 1);
-		assert.equal(env.entities.filter((e) => e.typeId === "vultrom:photo_tile").length, 0);
+		assert.equal(tilesOf(env, "vultrom:photo_tile64").length, 0);
 	});
 	await useOn("North", { sneak: true });
 	check("hang: sneak-using it on a wall views it instead", () => assert.equal(env.ui.forms.length, 1));
 	const hung = await useOn("North");
-	const tiles = env.entities.filter((e) => e.typeId === "vultrom:photo_tile" && e.isValid());
-	check("hang: using it on a wall side spawns the 16-tile framed picture facing out of the wall", () => {
+	const tiles = tilesOf(env, "vultrom:photo_tile64");
+	check("hang: a 64×64 photo hangs as 32 tile entities (128 pixels each) facing out of the wall", () => {
 		assert.equal(hung.cancel, true);
-		assert.equal(tiles.length, 16);
+		assert.equal(tiles.length, 32);
 		for (const t of tiles) {
 			assert.deepEqual(t.location, { x: 10.5, y: 64, z: 9.5 });
 			assert.deepEqual(t.rot, { x: 0, y: 180 });
+			assert.equal(t.events.length, 1);
 		}
-		assert.deepEqual(tiles.map((t) => t.props["vultrom:tile"]).sort((a, b) => a - b), [...Array(16).keys()]);
+		assert.deepEqual(tiles.map((t) => t.events[0]).sort(), [...Array(32).keys()].map((t) => `vultrom:tile_${t}`).sort());
 		assert.ok(env.sounds.includes("block.itemframe.place"));
 	});
 	check("hang: tile properties decode back to the photo; survival uses up the Photo", () => {
 		const byTile = [];
-		for (const t of tiles) byTile[t.props["vultrom:tile"]] = Array.from({ length: 16 }, (_, k) => t.props[`vultrom:p${k}`]);
-		assert.deepEqual(core.pixelsFromTiles(byTile), photoPixels);
+		for (const t of tiles) {
+			const props = Object.keys(t.props);
+			assert.equal(props.length, 32);
+			byTile[Number(t.events[0].split("_").at(-1))] = Array.from({ length: 32 }, (_, k) => t.props[`vultrom:p${k}`]);
+		}
+		assert.deepEqual(core.pixelsFromTiles(byTile, 64), photo64);
 		for (const v of byTile.flat()) assert.ok(Number.isInteger(v) && v >= 0 && v < 2 ** 24);
-		assert.equal(player.slots.filter((s) => s?.typeId === "vultrom:photo").length, 1);
+		assert.equal(photos().length, 1);
 	});
-	player.selectedSlotIndex = player.slots.findIndex((s) => s?.typeId === "vultrom:photo");
+	check("storage: the frame keeps the photo once (on one tile), within the dynamic property limit", () => {
+		const holders = tiles.filter((t) => t.dyn["vultrom:photo"] !== undefined);
+		assert.equal(holders.length, 1);
+		assert.ok(holders[0].dyn["vultrom:photo"].length < core.MAX_PROPERTY_LENGTH / 7);
+		assert.equal(new Set(tiles.map((t) => t.dyn["vultrom:frame"])).size, 1);
+	});
+	player.selectedSlotIndex = player.slots.indexOf(photos()[0]);
 	const before2 = env.entities.length;
 	await useOn("North");
 	check("hang: a second photo can't go on the same spot", () => {
@@ -1000,14 +1063,15 @@ let photoMeta;
 	env.blocks.set("11,64,10", "minecraft:air");
 	await useOn("East");
 	check("hang: east side faces east (yaw -90)", () => {
-		const east = env.entities.filter((e) => e.typeId === "vultrom:photo_tile" && e.isValid() && e.location.x === 11.5);
-		assert.equal(east.length, 16);
+		const east = tilesOf(env, "vultrom:photo_tile64").filter((e) => e.location.x === 11.5);
+		assert.equal(east.length, 32);
 		assert.equal(east[0].rot.y, -90);
 	});
 	env.ui.forms.length = 0;
-	env.fire("pie", { target: tiles[5], player });
+	const plain = tiles.find((t) => t.dyn["vultrom:photo"] === undefined);
+	env.fire("pie", { target: plain, player });
 	await flush(2);
-	check("frame: right-clicking a framed photo opens the viewer", () => {
+	check("frame: right-clicking any tile of a framed photo opens the viewer", () => {
 		assert.equal(env.ui.forms.length, 1);
 		assert.equal(env.ui.forms[0].titleText, "Photo #1");
 	});
@@ -1015,7 +1079,7 @@ let photoMeta;
 	env.fire("hit", { damagingEntity: player, hitEntity: tiles[9] });
 	check("frame: hitting it takes the whole picture down and drops the Photo (same picture and lore)", () => {
 		assert.equal(tiles.filter((t) => t.isValid()).length, 0);
-		assert.equal(env.entities.filter((e) => e.typeId === "vultrom:photo_tile" && e.isValid()).length, 16, "the east frame stays");
+		assert.equal(tilesOf(env, "vultrom:photo_tile64").length, 32, "the east frame stays");
 		assert.equal(env.spawnedItems.length, 1);
 		const drop = env.spawnedItems[0].stack;
 		assert.equal(drop.typeId, "vultrom:photo");
@@ -1024,13 +1088,67 @@ let photoMeta;
 	});
 	player.gameMode = "creative";
 	env.spawnedItems.length = 0;
-	const eastTile = env.entities.find((e) => e.typeId === "vultrom:photo_tile" && e.isValid());
-	env.fire("hit", { damagingEntity: player, hitEntity: eastTile });
+	env.fire("hit", { damagingEntity: player, hitEntity: tilesOf(env, "vultrom:photo_tile64")[0] });
 	check("frame: in creative, taking it down drops nothing", () => {
-		assert.equal(env.entities.filter((e) => e.typeId === "vultrom:photo_tile" && e.isValid()).length, 0);
+		assert.equal(tilesOf(env, "vultrom:photo_tile64").length, 0);
 		assert.equal(env.spawnedItems.length, 0);
 	});
 	player.gameMode = "survival";
+
+	// v0.1.10 photos: 32×32, no size in their meta
+	player.slots[0] = new ItemStack("vultrom:camera", 1);
+	player.selectedSlotIndex = 0;
+	await flush(45);
+	const before32 = photos().length;
+	camera.snap(player, 32);
+	await waitForPhoto(before32 + 1);
+	const fresh32 = photos().at(-1);
+	photo32 = core.decodePixels(fresh32.dyn["vultrom:pixels"]);
+	const legacyMeta = { id: 7, by: "Mason", x: 0, y: 64, z: 0, dim: "minecraft:overworld", day: 5, time: 11200 };
+	const legacy = new ItemStack("vultrom:photo", 1);
+	legacy.setLore(core.photoLore(legacyMeta));
+	legacy.setDynamicProperty("vultrom:photo", JSON.stringify(legacyMeta));
+	legacy.setDynamicProperty("vultrom:pixels", fresh32.dyn["vultrom:pixels"]);
+	player.slots[player.slots.indexOf(fresh32)] = legacy;
+	player.selectedSlotIndex = player.slots.indexOf(legacy);
+	check("legacy: the same scene at 32×32 is still a valid 1024-pixel photo", () => {
+		assert.equal(photo32.length, 1024);
+		assert.deepEqual(legacy.lore.at(-1), "§8Photo #7");
+	});
+	await flush(5);
+	env.ui.forms.length = 0;
+	env.fire("use", { source: player, itemStack: legacy });
+	await flush(2);
+	check("legacy: a v0.1.10 32×32 Photo still opens on one page (16 lines of 32 glyphs, Close)", () => {
+		assert.equal(env.ui.forms.length, 1);
+		const lines = env.ui.forms[0].bodyText.split("\n");
+		assert.deepEqual(decodeLines(lines.slice(0, 16)), photo32);
+		assert.deepEqual(lines.slice(17), ["§7Taken by §fMason", "§7At §f0 64 0 §7(Overworld)", "§7Day 5, 17:12"]);
+		assert.deepEqual(env.ui.forms[0].buttons.map((b) => b.label), ["Close"]);
+	});
+	env.blocks.set("10,64,11", "minecraft:air");
+	await useOn("South");
+	const old = tilesOf(env, "vultrom:photo_tile");
+	check("legacy: it hangs in the 16-tile 32×32 frame (vultrom:tile property, 16 packed properties)", () => {
+		assert.equal(old.length, 16);
+		assert.equal(old[0].rot.y, 0);
+		const byTile = [];
+		for (const t of old) byTile[t.props["vultrom:tile"]] = Array.from({ length: 16 }, (_, k) => t.props[`vultrom:p${k}`]);
+		assert.deepEqual(core.pixelsFromTiles(byTile, 32), photo32);
+		assert.equal(old[0].events.length, 0);
+	});
+	env.ui.forms.length = 0;
+	env.fire("pie", { target: old[11], player });
+	await flush(2);
+	check("legacy: its frame opens the viewer", () => assert.equal(env.ui.forms[0]?.titleText, "Photo #7"));
+	env.spawnedItems.length = 0;
+	env.fire("hit", { damagingEntity: player, hitEntity: old[4] });
+	check("legacy: taking it down gives back the same 32×32 photo", () => {
+		assert.equal(tilesOf(env, "vultrom:photo_tile").length, 0);
+		const drop = env.spawnedItems[0]?.stack;
+		assert.equal(drop?.dyn["vultrom:pixels"], legacy.dyn["vultrom:pixels"]);
+		assert.equal(drop.lore.at(-1), "§8Photo #7 · 32x32");
+	});
 
 	const blank = new ItemStack("vultrom:photo", 1);
 	await flush(5);
@@ -1056,7 +1174,7 @@ let photoMeta;
 	await flush(60);
 
 	check("photo lore stays within 50 characters for long names and far coordinates", () => {
-		for (const line of core.photoLore({ id: 123456, by: "AVeryLongPlayerNameIndeed_x", x: -29999984, y: -64, z: 29999984, dim: "minecraft:the_end", day: 123456, time: 23999 })) {
+		for (const line of core.photoLore({ id: 123456, size: 64, by: "AVeryLongPlayerNameIndeed_x", x: -29999984, y: -64, z: 29999984, dim: "minecraft:the_end", day: 123456, time: 23999 })) {
 			assert.ok(line.length <= 50, line);
 		}
 	});
@@ -1064,9 +1182,6 @@ let photoMeta;
 
 // ---------- 7. generated assets agree with the script ----------
 {
-	const geo = JSON.parse(read("Vultrom_RP/models/entity/photo_tile.geo.json"))["minecraft:geometry"][0];
-	const anim = JSON.parse(read("Vultrom_RP/animations/photo_tile.animation.json")).animations["animation.vultrom.photo_tile.pixels"];
-	const bones = new Map(geo.bones.map((b) => [b.name, b]));
 	const STEP = 360 / 64;
 	const rotX = (p, pivot, deg) => {
 		const a = (deg * Math.PI) / 180;
@@ -1074,9 +1189,10 @@ let photoMeta;
 		const z = p[2] - pivot[2];
 		return [p[0], pivot[1] + y * Math.cos(a) - z * Math.sin(a), pivot[2] + y * Math.sin(a) + z * Math.cos(a)];
 	};
-	/** Front-facing color of a pixel drum at bone rotation `deg`, and the nearest z of any other face. */
+	/** Front-facing color of a pixel drum at bone rotation `deg`, its height, and the nearest z of any other face. */
 	const drumFront = (bone, deg) => {
 		let front;
+		let height;
 		let othersMinZ = Infinity;
 		for (const cube of bone.cubes) {
 			for (const [face, zLocal] of [["north", cube.origin[2]], ["south", cube.origin[2] + cube.size[2]]]) {
@@ -1087,36 +1203,82 @@ let photoMeta;
 				const [u, v] = cube.uv[face].uv;
 				const color = ((v - 2) / 8) * 8 + (u - 2) / 8;
 				const flat = Math.abs(corners[0][2] - corners[1][2]) < 1e-6;
-				if (flat && Math.abs(corners[0][2] - FRAME.plane) < 1e-6) front = color;
-				else othersMinZ = Math.min(othersMinZ, ...corners.map((c) => c[2]));
+				if (flat && Math.abs(corners[0][2] - FRAME.plane) < 1e-6) {
+					front = color;
+					height = Math.abs(corners[1][1] - corners[0][1]);
+				} else othersMinZ = Math.min(othersMinZ, ...corners.map((c) => c[2]));
 			}
 		}
-		return { front, othersMinZ };
+		return { front, height, othersMinZ };
 	};
-	check("frame geometry: 64 pixel drums per tile, borders, sized to the block face", () => {
-		assert.equal(geo.bones.filter((b) => b.name.startsWith("px_")).length, 64);
-		for (const b of ["root", "strip", "border_top", "border_bottom", "border_sides"]) assert.ok(bones.has(b), b);
-		assert.ok(geo.bones.length <= 72);
-		assert.equal(geo.description.texture_width, 128);
-	});
-	check("frame geometry: turning a drum by −c·5.625° shows palette color c, every other face behind the picture", () => {
-		const bone = bones.get("px_1_17");
-		for (let c = 0; c < 64; c++) {
-			const { front, othersMinZ } = drumFront(bone, -c * STEP);
-			assert.equal(front, c);
-			assert.ok(othersMinZ > FRAME.plane - 1e-6, `color ${c}: a face pokes out at z=${othersMinZ}`);
+	const variants = [
+		{ size: 32, name: "photo_tile", pixels: () => photo32, strip: /^-q\.property\('vultrom:tile'\) \* 0\.875$/ },
+		{ size: 64, name: "photo_tile64", pixels: () => photo64, strip: /^-q\.variant \* 0\.4375$/ }
+	];
+	for (const { size, name, pixels, strip } of variants) {
+		const geo = JSON.parse(read(`Vultrom_RP/models/entity/${name}.geo.json`))["minecraft:geometry"][0];
+		const anim = JSON.parse(read(`Vultrom_RP/animations/${name}.animation.json`)).animations[`animation.vultrom.${name}.pixels`];
+		const bones = new Map(geo.bones.map((b) => [b.name, b]));
+		const { rows, props } = core.FRAMES[size];
+		check(`frame ${size}×${size} geometry: ${rows * size} pixel drums per tile, borders, sized to the block face`, () => {
+			assert.equal(geo.description.identifier, `geometry.vultrom.${name}`);
+			assert.equal(geo.bones.filter((b) => b.name.startsWith("px_")).length, rows * size);
+			for (const b of ["root", "strip", "border_top", "border_bottom", "border_sides"]) assert.ok(bones.has(b), b);
+			assert.ok(geo.bones.length <= rows * size + 6);
+			assert.equal(geo.description.texture_width, 128);
+		});
+		check(`frame ${size}×${size} geometry: turning a drum by −c·5.625° shows palette color c, every other face behind the picture`, () => {
+			const bone = bones.get(`px_1_${size / 2 + 1}`);
+			for (let c = 0; c < 64; c++) {
+				const { front, height, othersMinZ } = drumFront(bone, -c * STEP);
+				assert.equal(front, c);
+				assert.ok(Math.abs(height - framePixel(size)) < 1e-3, `pixel height ${height}`);
+				assert.ok(othersMinZ > FRAME.plane - 1e-6, `color ${c}: a face pokes out at z=${othersMinZ}`);
+			}
+		});
+		check(`frame ${size}×${size} animation: Molang unpacks the tile properties exactly like the script packs them`, () => {
+			const tile = 3;
+			const values = core.tileProperties(pixels(), tile, size);
+			assert.equal(values.length, props);
+			const q = { property: (n) => values[Number(n.split(":p")[1])] };
+			const math = { mod: (a, b) => a % b, floor: Math.floor };
+			for (let i = 0; i < rows * size; i++) {
+				const expr = anim.bones[`px_${Math.floor(i / size)}_${i % size}`].rotation[0];
+				const deg = new Function("q", "math", `return ${expr};`)(q, math);
+				assert.equal(Math.round(-deg / STEP), pixels()[tile * rows * size + i]);
+			}
+			assert.match(anim.bones.strip.position[1], strip);
+		});
+	}
+	check("frame 64×64 entity: 32 packed properties (Bedrock's per-entity maximum), a variant per tile index", () => {
+		const def = JSON.parse(read("Vultrom_BP/entities/photo_tile64.json"))["minecraft:entity"];
+		const propsDef = def.description.properties;
+		assert.equal(Object.keys(propsDef).length, 32);
+		for (const p of Object.values(propsDef)) {
+			assert.deepEqual(p.range, [0, 2 ** 24 - 1]);
+			assert.equal(p.client_sync, true);
 		}
-	});
-	check("frame animation: Molang unpacks the tile properties exactly like the script packs them", () => {
-		const props = core.tileProperties(photoPixels, 3);
-		const q = { property: (n) => props[Number(n.split(":p")[1])] };
-		const math = { mod: (a, b) => a % b, floor: Math.floor };
-		for (let i = 0; i < 64; i++) {
-			const expr = anim.bones[`px_${Math.floor(i / 32)}_${i % 32}`].rotation[0];
-			const deg = new Function("q", "math", `return ${expr};`)(q, math);
-			assert.equal(Math.round(-deg / STEP), photoPixels[3 * 64 + i]);
+		for (let t = 0; t < 32; t++) {
+			assert.deepEqual(def.events[`vultrom:tile_${t}`], { add: { component_groups: [`vultrom:tile_${t}`] } });
+			assert.deepEqual(def.component_groups[`vultrom:tile_${t}`], { "minecraft:variant": { value: t } });
 		}
-		assert.match(anim.bones.strip.position[1], /vultrom:tile'\) \* 0\.875/);
+		const base = JSON.parse(read("Vultrom_BP/entities/photo_tile.json"))["minecraft:entity"];
+		assert.deepEqual(def.components, base.components);
+	});
+	check("frame 64×64 client: far frames skip the drum animation and show the backing instead", () => {
+		const client = JSON.parse(read("Vultrom_RP/entity/photo_tile64.entity.json"))["minecraft:client_entity"].description;
+		const near = `q.distance_from_camera < ${FRAME_DETAIL_DISTANCE}`;
+		assert.deepEqual(client.scripts.animate, [{ pixels: near }]);
+		assert.equal(client.geometry.default, "geometry.vultrom.photo_tile64");
+		assert.equal(client.animations.pixels, "animation.vultrom.photo_tile64.pixels");
+		const rc = JSON.parse(read("Vultrom_RP/render_controllers/photo_tile.render_controllers.json")).render_controllers;
+		const vis = Object.assign({}, ...rc[client.render_controllers[0]].part_visibility);
+		assert.equal(vis["px_*"], near);
+		assert.equal(vis.backing, `q.distance_from_camera >= ${FRAME_DETAIL_DISTANCE}`);
+		assert.equal(vis.border_bottom, "q.variant == 31");
+		const geo = JSON.parse(read("Vultrom_RP/models/entity/photo_tile64.geo.json"))["minecraft:geometry"][0];
+		assert.ok(geo.bones.some((b) => b.name === "backing"));
+		for (const lang of ["Vultrom_BP/texts/en_US.lang", "Vultrom_RP/texts/en_US.lang"]) assert.match(read(lang), /^entity\.vultrom:photo_tile64\.name=Photo$/m);
 	});
 	check("palette: 64 distinct colors, matching the photo_tile property ranges", () => {
 		assert.equal(new Set(PALETTE).size, 64);
@@ -1126,35 +1288,76 @@ let photoMeta;
 	});
 }
 
-// ---------- preview: the mock photo as the viewer form and as a framed picture ----------
-if (process.env.PHOTO_PREVIEW && photoPixels) {
+// ---------- preview: the mock scene at 32×32 and 64×64, as viewer forms and framed pictures ----------
+if (process.env.PHOTO_PREVIEW && photo64 && photo32) {
+	// prettier-ignore
+	const FONT = {
+		A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110", E: "111100110100111",
+		F: "111100110100100", G: "011100101101011", H: "101101111101101", I: "111010010010111", K: "101101110101101",
+		L: "100100100100111", M: "101111111101101", N: "110101101101101", O: "010101101101010", P: "110101110100100",
+		Q: "010101101110011", R: "110101110101101", S: "011100010001110", T: "111010010010010", U: "101101101101111",
+		V: "101101101101010", W: "101101111111101", X: "101101010101101", Y: "101101010010010",
+		0: "111101101101111", 1: "010110010010111", 2: "110001010100111", 3: "110001010001110", 4: "101101111001001",
+		5: "111100110001110", 6: "011100111101111", 7: "111001010010010", 8: "111101111101111", 9: "111101111001110",
+		".": "000000000000010", "-": "000000111000000", "#": "101111101111101", "(": "001010010010001", ")": "100010010010100", " ": "000000000000000"
+	};
 	const S = 3;
-	const img = new Image(1040, 600);
-	img.fill(0, 0, 1040, 600, 0x1e1e1f);
-	// Left: viewer form at GUI scale 3 (one glyph = 4 colored + 1 gap px; 10-px lines).
-	img.fill(24, 24, 500, 552, 0x313233);
-	img.fill(24, 24, 500, 40, 0x48494a);
-	const ox = 24 + (500 - 32 * GLYPH.advance * S) / 2;
-	const oy = 84;
-	for (let row = 0; row < 16; row++) {
-		for (let x = 0; x < 32; x++) {
-			const top = PALETTE[photoPixels[row * 64 + x]];
-			const bottom = PALETTE[photoPixels[row * 64 + 32 + x]];
-			const half = (GLYPH.lineHeight / 2) * S;
-			img.fill(ox + x * GLYPH.advance * S, oy + row * GLYPH.lineHeight * S, GLYPH.inkWidth * S, half, top);
-			img.fill(ox + x * GLYPH.advance * S, oy + row * GLYPH.lineHeight * S + half, GLYPH.inkWidth * S, half, bottom);
+	const PANEL = 500;
+	const U = 32;
+	const BG = 0x1e1e1f;
+	const img = new Image(1640, 1580);
+	img.fill(0, 0, img.width, img.height, BG);
+	const text = (x, y, str, color = 0xdedede, k = 4) => {
+		for (const ch of str.toUpperCase()) {
+			const g = FONT[ch] ?? FONT[" "];
+			for (let i = 0; i < 15; i++) if (g[i] === "1") img.fill(x + (i % 3) * k, y + Math.floor(i / 3) * k, k, k, color);
+			x += 4 * k;
 		}
-	}
-	// Right: the framed picture on a wall (one model unit = 30 px).
-	const U = 30;
-	const fx = 548;
-	const fy = 60;
-	img.fill(fx - 12, fy - 12, 16 * U + 24, 16 * U + 24, 0x7d7d7d);
-	img.fill(fx, fy, 16 * U, 16 * U, FRAME_COLORS.front);
-	const p = FRAME.pixel * U;
-	for (let y = 0; y < 32; y++) {
-		for (let x = 0; x < 32; x++) img.fill(Math.round(fx + U + x * p), Math.round(fy + U + y * p), Math.ceil(p), Math.ceil(p), PALETTE[photoPixels[y * 32 + x]]);
-	}
+	};
+	/** An ActionForm: title bar, the picture as glyphs (4 colored + 1 gap px each, 10-px lines), buttons. */
+	const form = (x, y, title, picture, buttons) => {
+		const height = 40 + 20 + 16 * GLYPH.lineHeight * S + 20 + buttons.length * 44 + 8;
+		img.fill(x, y, PANEL, height, 0x313233);
+		img.fill(x, y, PANEL, 40, 0x48494a);
+		text(x + 14, y + 10, title, 0xffffff);
+		const ox = x + (PANEL - 32 * GLYPH.advance * S) / 2;
+		const oy = y + 60;
+		const half = (GLYPH.lineHeight / 2) * S;
+		for (let row = 0; row < 16; row++) {
+			for (let c = 0; c < 32; c++) {
+				img.fill(ox + c * GLYPH.advance * S, oy + row * GLYPH.lineHeight * S, GLYPH.inkWidth * S, half, PALETTE[picture[row * 64 + c]]);
+				img.fill(ox + c * GLYPH.advance * S, oy + row * GLYPH.lineHeight * S + half, GLYPH.inkWidth * S, half, PALETTE[picture[row * 64 + 32 + c]]);
+			}
+		}
+		buttons.forEach((label, i) => {
+			const by = oy + 16 * GLYPH.lineHeight * S + 20 + i * 44;
+			img.fill(x + 16, by, PANEL - 32, 36, 0x5a5b5c);
+			text(x + PANEL / 2 - label.length * 8, by + 8, label, 0xffffff);
+		});
+		return height;
+	};
+	const framed = (x, y, pixels, size) => {
+		img.fill(x - 16, y - 16, 16 * U + 32, 16 * U + 32, 0x7d7d7d);
+		img.fill(x, y, 16 * U, 16 * U, FRAME_COLORS.front);
+		const p = framePixel(size) * U;
+		for (let r = 0; r < size; r++) {
+			for (let c = 0; c < size; c++) img.fill(Math.round(x + U + c * p), Math.round(y + U + r * p), Math.ceil(p), Math.ceil(p), PALETTE[pixels[r * size + c]]);
+		}
+	};
+	const cols = [24, 24 + PANEL + 32, 24 + 2 * (PANEL + 32) + 16];
+	text(cols[0], 24, "32x32 (v0.1.10 photos) - viewer", 0xffd27a);
+	text(cols[2] - 16, 24, "frame - 16 entities", 0xffd27a);
+	const h1 = form(cols[0], 64, "Photo #7", photo32, ["Close"]);
+	text(cols[1] + 40, 64 + 260, "fits one page", 0x8a8a8a);
+	framed(cols[2], 80, photo32, 32);
+	const y2 = 64 + Math.max(h1, 16 * U + 32) + 48;
+	text(cols[0], y2, "64x64 (v0.1.11) - overview", 0xffd27a);
+	text(cols[1], y2, "top left quarter", 0xffd27a);
+	text(cols[2] - 16, y2, "frame - 32 entities", 0xffd27a);
+	const quarter = core.crop(photo64, 64, 0, 0, 32);
+	form(cols[0], y2 + 40, "Photo #1", core.downsample(photo64, 64), ["Top left", "Top right", "Bottom left", "Bottom right", "Close"]);
+	form(cols[1], y2 + 40, "Photo #1 - top left", quarter, ["Back", "Close"]);
+	framed(cols[2], y2 + 56, photo64, 64);
 	writeFileSync(process.env.PHOTO_PREVIEW, img.encode());
 	console.log(`preview written to ${process.env.PHOTO_PREVIEW}`);
 }

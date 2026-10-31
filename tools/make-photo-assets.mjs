@@ -2,15 +2,20 @@
 //   Vultrom_BP/scripts/photo_palette.js                64-color photo palette (k-means)
 //   Vultrom_RP/font/glyph_E2.png … glyph_F1.png        viewer half-block glyphs (64×64 pairs)
 //   Vultrom_RP/textures/entity/vultrom/photo_palette.png   frame tile texture
-//   Vultrom_RP/models/entity/photo_tile.geo.json       frame tile: 2 rows of pixel "drums"
-//   Vultrom_RP/animations/photo_tile.animation.json    drum rotations from entity properties
+//   Vultrom_RP/models/entity/photo_tile.geo.json       32×32 frame tile: 2 rows of pixel "drums"
+//   Vultrom_RP/animations/photo_tile.animation.json    its drum rotations from entity properties
+//   Vultrom_RP/models/entity/photo_tile64.geo.json     64×64 frame tile (2 rows of 64 drums)
+//   Vultrom_RP/animations/photo_tile64.animation.json
+//   Vultrom_RP/entity/photo_tile64.entity.json + render controller   64×64 frame tile client side
+//   Vultrom_BP/entities/photo_tile64.json              64×64 frame tile: 32 properties, 32 tile variants
 //   Vultrom_RP/textures/items/photo.png                Photo item icon
 // Run from the repo root: node tools/make-photo-assets.mjs
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { paletteSamples } from "../Vultrom_BP/scripts/photo_colors.js";
+import { FRAMES } from "../Vultrom_BP/scripts/photo_core.js";
 import { Image } from "./png.mjs";
-import { FRAME, FRAME_COLORS, GLYPH } from "./photo-layout.mjs";
+import { FRAME, FRAME_COLORS, FRAME_DETAIL_DISTANCE, GLYPH, framePixel } from "./photo-layout.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const out = (path, data) => {
@@ -21,8 +26,6 @@ const out = (path, data) => {
 const json = (v) => JSON.stringify(v, null, "\t") + "\n";
 
 const COLORS = 64;
-const SIZE = 32;
-const TILE_ROWS = 2;
 
 // ---------- palette ----------
 function mulberry32(seed) {
@@ -107,24 +110,24 @@ for (let page = 0; page < (COLORS * COLORS) / 256; page++) {
 // ---------- frame tile texture: 8×8 palette cells of 8×8 texels, frame wood on the right ----------
 const TEX = { width: 128, height: 64 };
 const paletteUv = (i) => [(i % 8) * 8 + 2, Math.floor(i / 8) * 8 + 2];
-const FRAME_UV = { front: [66, 2], side: [74, 2] };
+const FRAME_UV = { front: [66, 2], side: [74, 2], backing: [82, 2] };
 {
 	const img = new Image(TEX.width, TEX.height);
 	PALETTE.forEach((c, i) => img.fill((i % 8) * 8, Math.floor(i / 8) * 8, 8, 8, c));
 	img.fill(64, 0, 8, 8, FRAME_COLORS.front);
 	img.fill(72, 0, 8, 8, FRAME_COLORS.side);
+	img.fill(80, 0, 8, 8, FRAME_COLORS.backing);
 	out("Vultrom_RP/textures/entity/vultrom/photo_palette.png", img.encode());
 }
 
-// ---------- frame tile geometry ----------
+// ---------- frame tile geometry and animation ----------
 // Each pixel is a 64-sided "drum" of faces around a horizontal axis behind the picture
 // plane, one face per palette color (32 boxes, front and back faces). The animation turns
 // the drum so the wanted color faces out; every other face stays behind the picture plane
 // (the drum's inradius is ≥ pixel / (2·tan(π/64))), so the front faces tile the picture.
+// A tile draws two picture rows; the "strip" bone moves them down to the tile's place.
 const r4 = (v) => Math.round(v * 10000) / 10000;
-const W = FRAME.pixel;
 const STEP = 360 / COLORS;
-const RADIUS = r4((1.01 * W) / (2 * Math.tan(Math.PI / COLORS)));
 const uvFace = (uv) => ({ uv, uv_size: [4, 4] });
 const frameUv = {
 	north: uvFace(FRAME_UV.front),
@@ -135,86 +138,159 @@ const frameUv = {
 	down: uvFace(FRAME_UV.side)
 };
 const { front: BF, depth: BD, width: BW } = FRAME.border;
-const pictureWidth = SIZE * W;
-const bones = [
-	{ name: "root", pivot: [0, 0, 0] },
-	{
-		name: "border_top",
-		parent: "root",
-		pivot: [0, 0, 0],
-		cubes: [{ origin: [FRAME.left - BW, FRAME.top, BF], size: [pictureWidth + 2 * BW, BW, BD], uv: frameUv }]
-	},
-	{
-		name: "border_bottom",
-		parent: "root",
-		pivot: [0, 0, 0],
-		cubes: [{ origin: [FRAME.left - BW, r4(FRAME.top - pictureWidth - BW), BF], size: [pictureWidth + 2 * BW, BW, BD], uv: frameUv }]
-	},
-	{ name: "strip", parent: "root", pivot: [0, 0, 0] },
-	{
-		name: "border_sides",
-		parent: "strip",
-		pivot: [0, 0, 0],
-		cubes: [FRAME.left - BW, FRAME.left + pictureWidth].map((x) => ({
-			origin: [x, r4(FRAME.top - TILE_ROWS * W), BF],
-			size: [BW, r4(TILE_ROWS * W), BD],
-			uv: frameUv
-		}))
-	}
-];
-for (let r = 0; r < TILE_ROWS; r++) {
-	for (let c = 0; c < SIZE; c++) {
-		const x0 = r4(FRAME.left + c * W);
-		const y0 = r4(FRAME.top - (r + 1) * W);
-		const pivot = [r4(x0 + W / 2), r4(y0 + W / 2), r4(FRAME.plane + RADIUS)];
-		const cubes = [];
-		for (let k = 0; k < COLORS / 2; k++) {
-			const cube = {
-				origin: [x0, y0, FRAME.plane],
-				size: [W, W, r4(2 * RADIUS)],
-				pivot,
-				uv: { north: uvFace(paletteUv(k)), south: uvFace(paletteUv(k + COLORS / 2)) }
-			};
-			if (k > 0) cube.rotation = [r4(k * STEP), 0, 0];
-			cubes.push(cube);
-		}
-		bones.push({ name: `px_${r}_${c}`, parent: "strip", pivot, cubes });
-	}
-}
-out(
-	"Vultrom_RP/models/entity/photo_tile.geo.json",
-	JSON.stringify({
-		format_version: "1.12.0",
-		"minecraft:geometry": [
-			{
-				description: {
-					identifier: "geometry.vultrom.photo_tile",
-					texture_width: TEX.width,
-					texture_height: TEX.height,
-					visible_bounds_width: 3,
-					visible_bounds_height: 3,
-					visible_bounds_offset: [0, 0.5, 0]
-				},
-				bones
-			}
-		]
-	}) + "\n"
-);
 
-// ---------- frame tile animation ----------
-const animBones = {
-	strip: { position: [0, `-q.property('vultrom:tile') * ${r4(TILE_ROWS * W)}`, 0] }
-};
-for (let i = 0; i < TILE_ROWS * SIZE; i++) {
-	const prop = `q.property('vultrom:p${i >> 2}')`;
-	const shift = 64 ** (i & 3);
-	const value = (i & 3) === 3 ? `math.floor(${prop} / ${shift})` : (i & 3) === 0 ? `math.mod(${prop}, 64)` : `math.mod(math.floor(${prop} / ${shift}), 64)`;
-	animBones[`px_${Math.floor(i / SIZE)}_${i % SIZE}`] = { rotation: [`-${value} * ${STEP}`, 0, 0] };
+/**
+ * Writes geometry.vultrom.<name> and animation.vultrom.<name>.pixels for `size`×`size` frames.
+ * @param {string} tileQuery Molang for the tile index
+ * @param {boolean} backing add a plain "backing" bone, shown instead of the drums when far
+ */
+function frameAssets(size, name, tileQuery, backing) {
+	const { rows } = FRAMES[size];
+	const W = framePixel(size);
+	const RADIUS = r4((1.01 * W) / (2 * Math.tan(Math.PI / COLORS)));
+	const stripHeight = r4(rows * W);
+	const bones = [
+		{ name: "root", pivot: [0, 0, 0] },
+		{
+			name: "border_top",
+			parent: "root",
+			pivot: [0, 0, 0],
+			cubes: [{ origin: [FRAME.left - BW, FRAME.top, BF], size: [FRAME.width + 2 * BW, BW, BD], uv: frameUv }]
+		},
+		{
+			name: "border_bottom",
+			parent: "root",
+			pivot: [0, 0, 0],
+			cubes: [{ origin: [FRAME.left - BW, r4(FRAME.top - FRAME.width - BW), BF], size: [FRAME.width + 2 * BW, BW, BD], uv: frameUv }]
+		},
+		{ name: "strip", parent: "root", pivot: [0, 0, 0] },
+		{
+			name: "border_sides",
+			parent: "strip",
+			pivot: [0, 0, 0],
+			cubes: [FRAME.left - BW, FRAME.left + FRAME.width].map((x) => ({
+				origin: [x, r4(FRAME.top - stripHeight), BF],
+				size: [BW, stripHeight, BD],
+				uv: frameUv
+			}))
+		}
+	];
+	if (backing) {
+		bones.push({
+			name: "backing",
+			parent: "strip",
+			pivot: [0, 0, 0],
+			cubes: [{ origin: [FRAME.left, r4(FRAME.top - stripHeight), FRAME.plane], size: [FRAME.width, stripHeight, 0], uv: { north: uvFace(FRAME_UV.backing) } }]
+		});
+	}
+	for (let r = 0; r < rows; r++) {
+		for (let c = 0; c < size; c++) {
+			const x0 = r4(FRAME.left + c * W);
+			const y0 = r4(FRAME.top - (r + 1) * W);
+			const pivot = [r4(x0 + W / 2), r4(y0 + W / 2), r4(FRAME.plane + RADIUS)];
+			const cubes = [];
+			for (let k = 0; k < COLORS / 2; k++) {
+				const cube = {
+					origin: [x0, y0, FRAME.plane],
+					size: [r4(W), r4(W), r4(2 * RADIUS)],
+					pivot,
+					uv: { north: uvFace(paletteUv(k)), south: uvFace(paletteUv(k + COLORS / 2)) }
+				};
+				if (k > 0) cube.rotation = [r4(k * STEP), 0, 0];
+				cubes.push(cube);
+			}
+			bones.push({ name: `px_${r}_${c}`, parent: "strip", pivot, cubes });
+		}
+	}
+	out(
+		`Vultrom_RP/models/entity/${name}.geo.json`,
+		JSON.stringify({
+			format_version: "1.12.0",
+			"minecraft:geometry": [
+				{
+					description: {
+						identifier: `geometry.vultrom.${name}`,
+						texture_width: TEX.width,
+						texture_height: TEX.height,
+						visible_bounds_width: 3,
+						visible_bounds_height: 3,
+						visible_bounds_offset: [0, 0.5, 0]
+					},
+					bones
+				}
+			]
+		}) + "\n"
+	);
+
+	const animBones = { strip: { position: [0, `-${tileQuery} * ${stripHeight}`, 0] } };
+	for (let i = 0; i < rows * size; i++) {
+		const prop = `q.property('vultrom:p${i >> 2}')`;
+		const shift = 64 ** (i & 3);
+		const value = (i & 3) === 3 ? `math.floor(${prop} / ${shift})` : (i & 3) === 0 ? `math.mod(${prop}, 64)` : `math.mod(math.floor(${prop} / ${shift}), 64)`;
+		animBones[`px_${Math.floor(i / size)}_${i % size}`] = { rotation: [`-${value} * ${STEP}`, 0, 0] };
+	}
+	out(
+		`Vultrom_RP/animations/${name}.animation.json`,
+		json({ format_version: "1.8.0", animations: { [`animation.vultrom.${name}.pixels`]: { loop: true, bones: animBones } } })
+	);
+	return RADIUS;
 }
-out(
-	"Vultrom_RP/animations/photo_tile.animation.json",
-	json({ format_version: "1.8.0", animations: { "animation.vultrom.photo_tile.pixels": { loop: true, bones: animBones } } })
-);
+
+const RADIUS_32 = frameAssets(32, "photo_tile", "q.property('vultrom:tile')", false);
+const RADIUS_64 = frameAssets(64, "photo_tile64", "q.variant", true);
+
+// ---------- 64×64 frame tile: client entity, render controller, server entity ----------
+// Beyond FRAME_DETAIL_DISTANCE blocks the tile skips its 128 drum rotations and hides the
+// drums, showing the plain backing instead, so far-away pictures cost next to nothing.
+{
+	const { entity, tiles, props, tileEvent } = FRAMES[64];
+	const near = `q.distance_from_camera < ${FRAME_DETAIL_DISTANCE}`;
+	out(
+		"Vultrom_RP/entity/photo_tile64.entity.json",
+		json({
+			format_version: "1.10.0",
+			"minecraft:client_entity": {
+				description: {
+					identifier: entity,
+					materials: { default: "entity" },
+					textures: { default: "textures/entity/vultrom/photo_palette" },
+					geometry: { default: "geometry.vultrom.photo_tile64" },
+					animations: { pixels: "animation.vultrom.photo_tile64.pixels" },
+					scripts: { animate: [{ pixels: near }] },
+					render_controllers: ["controller.render.vultrom_photo_tile64"]
+				}
+			}
+		})
+	);
+	const controllersPath = "Vultrom_RP/render_controllers/photo_tile.render_controllers.json";
+	const controllers = JSON.parse(readFileSync(join(ROOT, controllersPath), "utf8"));
+	controllers.render_controllers["controller.render.vultrom_photo_tile64"] = {
+		geometry: "Geometry.default",
+		materials: [{ "*": "Material.default" }],
+		textures: ["Texture.default"],
+		part_visibility: [
+			{ "*": true },
+			{ border_top: "q.variant == 0" },
+			{ border_bottom: `q.variant == ${tiles - 1}` },
+			{ "px_*": near },
+			{ backing: `q.distance_from_camera >= ${FRAME_DETAIL_DISTANCE}` }
+		]
+	};
+	out(controllersPath, json(controllers));
+
+	// Same components as the 32×32 tile; 32 packed properties and a variant per tile index.
+	const base = JSON.parse(readFileSync(join(ROOT, "Vultrom_BP/entities/photo_tile.json"), "utf8"));
+	const def = base["minecraft:entity"];
+	const property = def.description.properties["vultrom:p0"];
+	def.description.identifier = entity;
+	def.description.properties = Object.fromEntries(Array.from({ length: props }, (_, k) => [`vultrom:p${k}`, property]));
+	def.component_groups = Object.fromEntries(Array.from({ length: tiles }, (_, t) => [`${tileEvent}${t}`, { "minecraft:variant": { value: t } }]));
+	def.events = {
+		...def.events,
+		...Object.fromEntries(Array.from({ length: tiles }, (_, t) => [`${tileEvent}${t}`, { add: { component_groups: [`${tileEvent}${t}`] } }]))
+	};
+	out("Vultrom_BP/entities/photo_tile64.json", json(base));
+}
 
 // ---------- Photo item icon: a little polaroid ----------
 {
@@ -236,4 +312,4 @@ out(
 	out("Vultrom_RP/textures/items/photo.png", img.encode());
 }
 
-console.log(`palette: ${PALETTE.length} colors; drum inradius ${RADIUS} units`);
+console.log(`palette: ${PALETTE.length} colors; drum inradius ${RADIUS_32} units (32×32), ${RADIUS_64} (64×64)`);

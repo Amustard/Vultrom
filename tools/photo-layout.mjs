@@ -9,13 +9,17 @@
 export const GLYPH = { cell: 16, inkWidth: 4, advance: 5, topRows: [6, 11], bottomRows: [11, 16], lineHeight: 10 };
 
 // Framed picture, in model units (1/16 block): a 14×14 picture inside a 1-unit frame that
-// fills the block face, with each pixel 7/16 units.
+// fills the block face, so each pixel is 14 / size units (7/16 for 32×32, 7/32 for 64×64).
 export const FRAME = {
-	pixel: 0.4375,
+	width: 14,
 	left: -7,
 	top: 15,
 	plane: 7.875, // picture plane; the wall face is at z = 8
 	border: { front: 7.25, depth: 0.75, width: 1 }
 };
+export const framePixel = (size) => FRAME.width / size;
 
-export const FRAME_COLORS = { front: 0x6b4428, side: 0x4e321c };
+/** 64×64 frames stop drawing their pixels beyond this many blocks and show a plain backing. */
+export const FRAME_DETAIL_DISTANCE = 32;
+
+export const FRAME_COLORS = { front: 0x6b4428, side: 0x4e321c, backing: 0x8c8473 };

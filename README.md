@@ -8,17 +8,17 @@ Minecraft **Bedrock** addon: rare **Sapphire** and **Ruby** ore, **Gemstone Cutt
 
 | File | Link |
 |------|------|
-| **All-in-one** | [Vultrom-0.1.10.mcaddon](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom-0.1.10.mcaddon) |
-| Behavior pack | [Vultrom_BP-0.1.10.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP-0.1.10.mcpack) |
-| Resource pack | [Vultrom_RP-0.1.10.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP-0.1.10.mcpack) |
+| **All-in-one** | [Vultrom-0.1.11.mcaddon](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom-0.1.11.mcaddon) |
+| Behavior pack | [Vultrom_BP-0.1.11.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_BP-0.1.11.mcpack) |
+| Resource pack | [Vultrom_RP-0.1.11.mcpack](https://github.com/Amustard/Vultrom/raw/main/dist/Vultrom_RP-0.1.11.mcpack) |
 
-Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.10-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.10-bedrock)**. From 0.1.6 on, file names carry the version.
+Also listed under [`dist/`](./dist/) and GitHub Release **[v0.1.11-bedrock](https://github.com/Amustard/Vultrom/releases/tag/v0.1.11-bedrock)**. From 0.1.6 on, file names carry the version.
 
 ### Install
 
 Requires Minecraft Bedrock **1.21.50 or newer**.
 
-1. Download **Vultrom-0.1.10.mcaddon** (or both `.mcpack` files).
+1. Download **Vultrom-0.1.11.mcaddon** (or both `.mcpack` files).
 2. **Double-click** to import into Minecraft Bedrock.
 3. Create or edit a world → **Resource Packs** + **Behavior Packs** → activate **both** Vultrom packs.
 4. **No experiments required** — sapphire and ruby ore are placed by Script API (not `feature_rules`).
@@ -30,8 +30,8 @@ Bedrock can keep loading an old copy of a pack, so remove the old ones before im
 
 1. Close the world. **Settings → Storage** (or *Global Resources / My Packs*) → delete **every** “Vultrom Behavior” and “Vultrom Resources” entry.
 2. Edit the world → **Behavior Packs** and **Resource Packs** → deactivate any Vultrom pack still listed under *Active*.
-3. Fully quit Minecraft, reopen, then import the new **Vultrom-0.1.10.mcaddon**.
-4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.10**; binding a Jeweler reports **[Vultrom RP 1.0.10 loaded]**.
+3. Fully quit Minecraft, reopen, then import the new **Vultrom-0.1.11.mcaddon**.
+4. Edit the world → activate **Vultrom Behavior** (the resource pack is added with it). The pack descriptions should read **v0.1.11**; binding a Jeweler reports **[Vultrom RP 1.0.11 loaded]**.
 
 ## Source packs (dev)
 
@@ -40,9 +40,9 @@ Bedrock can keep loading an old copy of a pack, so remove the old ones before im
 | `Vultrom_BP/` | Behavior — blocks, item, script ore seeding, Jeweler entity, trades, bind script, find function |
 | `Vultrom_RP/` | Resources — textures, entity look, lang, photo glyph font pages (`font/glyph_E2`…`F1`) |
 | `art/` | Source art not loaded by the game (Mason's Jeweler profession overlay) |
-| `tools/` | `build-dist.sh` (rebuild `dist/`), `bake_jeweler_skin.py` (rebuild the Jeweler skin), `make_ruby_placeholders.py` (Raw Ruby / Ruby Scraps art), `make-photo-assets.mjs` (photo palette, glyph pages, frame model and Photo icon: `node tools/make-photo-assets.mjs`), `mock-test.mjs` (runs the script against a mock `@minecraft/server`: `node tools/mock-test.mjs`) |
+| `tools/` | `build-dist.sh` (rebuild `dist/`), `bake_jeweler_skin.py` (rebuild the Jeweler skin), `make_ruby_placeholders.py` (Raw Ruby / Ruby Scraps art), `make-photo-assets.mjs` (photo palette, glyph pages, 32×32 and 64×64 frame models and entities, Photo icon: `node tools/make-photo-assets.mjs`), `mock-test.mjs` (runs the script against a mock `@minecraft/server`: `node tools/mock-test.mjs`) |
 
-Rebuild downloads (names come from the manifest version: BP/RP `1.0.10` → `Vultrom-0.1.10.mcaddon`):
+Rebuild downloads (names come from the manifest version: BP/RP `1.0.11` → `Vultrom-0.1.11.mcaddon`):
 
 ```bash
 tools/build-dist.sh
@@ -58,10 +58,10 @@ python3 tools/bake_jeweler_skin.py
 
 1. Mine **Sapphire Ore**, **Ruby Ore** or **Deepslate Ruby Ore** with a **diamond or netherite pickaxe** → get **Raw Sapphire** / **Raw Ruby** (Fortune adds more; Silk Touch drops the ore block). Any other pickaxe, tool or bare hand only gets **Sapphire Scraps** / **Ruby Scraps** — worthless ("Sad to look at"). Every tool takes the same time: about 3 s (Deepslate Ruby Ore about 4.5 s).
 2. Craft a **Gemstone Cutter** (a gold stonecutter) at a crafting table: 1 diamond on top, 3 gold ingots in the middle row, 3 stone on the bottom row. Place it; it turns to face you. Right-click (tap) it with an empty hand or any other item → the **Gemstone Cutter** menu lists the raw gems you carry, with **Cut 1** and **Cut all** for each (Raw Sapphire → Sapphire, Raw Ruby → Ruby, 1-to-1); it reopens after each cut until you run out. Shortcut: hold **Raw Sapphire** or **Raw Ruby** and right-click → cuts 1 without the menu; **Sneak** + right-click cuts the **whole stack**. Sneak-clicking with a block still places it against the cutter.
-3. With a villager within 5 blocks, open the cutter's menu and press **Train a Jeweler** → that villager becomes its **Jeweler** (gold robe, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, the menu offers no second one. Chat confirms with **[Vultrom RP 1.0.10 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
+3. With a villager within 5 blocks, open the cutter's menu and press **Train a Jeweler** → that villager becomes its **Jeweler** (gold robe, “Jeweler” name tag). Each cutter employs one Jeweler — once it has one nearby, the menu offers no second one. Chat confirms with **[Vultrom RP 1.0.11 loaded]** — if you see `vultrom.rp_check` instead, the resource pack is missing or out of date.
 4. Right-click the Jeweler → sell **1 Sapphire for 40–80 emeralds**. After two sapphire sales he levels up and also buys **1 Ruby for 50–90 emeralds**. Once you sell him a Sapphire or a Ruby he holds that gem in front of his crossed arms (whichever was sold last), and when you close the trade screen he celebrates for about 8 seconds: hops and runs around, cheers, sparkles green and holds the gem up. The Jeweler lives like any villager: wanders, gathers at the bell, sleeps in a bed at night, flees zombies, opens doors, breeds and restocks.
-5. Craft a **Camera** at a crafting table: iron ingot / redstone / iron ingot on top, quartz / glass / quartz in the middle, iron ingot / redstone / iron ingot on the bottom. Hold it and right-click (in the air or at a block) to take a photo: shutter sound, white flash, then about a second of “Developing…” and a **Photo** lands in your inventory (2 s cooldown). Its tooltip says who took it, where (coordinates and dimension) and the in-game day and time.
-6. **View a Photo:** hold it and right-click in the air (or sneak + right-click a block) → the picture opens in a window. **Hang it:** right-click the side of a block → it hangs there as a framed 1×1 picture (uses up the Photo in survival). Right-click a framed photo to view it; hit it to take it down (it drops the Photo back; nothing in creative).
+5. Craft a **Camera** at a crafting table: iron ingot / redstone / iron ingot on top, quartz / glass / quartz in the middle, iron ingot / redstone / iron ingot on the bottom. Hold it and right-click (in the air or at a block) to take a photo: shutter sound, white flash, then a second or two of “Developing…” with a progress bar and a 64×64 **Photo** lands in your inventory (2 s cooldown). Its tooltip says who took it, where (coordinates and dimension) and the in-game day and time.
+6. **View a Photo:** hold it and right-click in the air (or sneak + right-click a block) → the picture opens in a window as a 32×32 overview; the **Top left / Top right / Bottom left / Bottom right** buttons show each quarter at full 64×64 detail (**Back** returns). The framed picture shows the whole photo at full resolution. **Hang it:** right-click the side of a block → it hangs there as a framed 1×1 picture (uses up the Photo in survival). Right-click a framed photo to view it; hit it to take it down (it drops the Photo back; nothing in creative).
 
 Creative: **Sapphire Ore**, **Ruby Ore** and **Deepslate Ruby Ore** are in the **Nature** tab inside the **Ores** group; the **Camera** is in the **Equipment** tab. Photos only come from the Camera.
 
@@ -90,8 +90,8 @@ Searches loaded chunks up to **192 blocks** away and reports coordinates and dis
 | Gemstone Cutter | Gold stonecutter: 16×9×16 base plus a double-sided saw blade (`geometry.vultrom.gemstone_cutter`, alpha test), faces the player when placed (`minecraft:placement_direction` + `minecraft:transformation`). Pickaxe, hardness 3.5 like the vanilla stonecutter. Recipe `recipes/gemstone_cutter.json`: diamond / 3 gold ingots / 3 stone. Clicks handled by `beforeEvents.playerInteractWithBlock`; the menu is an `@minecraft/server-ui` **1.3.0** `ActionFormData` (a real stonecutter slot screen needs experiments). Jeweler workstation via script (Bedrock has no custom vanilla professions) |
 | Jeweler | Vanilla `villager_v2` behavior (Bedrock 1.21.50.7 sample) with one Jeweler profession — see below |
 | Jeweler trades | Tier 1: buys 1 Sapphire → **40–80 emeralds**. Tier 2 (10 trader XP = two sapphire sales): buys 1 **Ruby** → **50–90 emeralds**. Prices live in `Vultrom_BP/trading/jeweler_trades.json` (`quantity`, `max_uses`, `total_exp_required`) |
-| Camera | `vultrom:camera`, stacks to 1, Equipment tab, 2 s cooldown (`minecraft:cooldown` category `vultrom_camera`). Recipe `recipes/camera.json` (shaped, crafting table): `IRI` / `QGQ` / `IRI` with I = iron ingot, R = redstone, Q = quartz, G = glass; no vanilla recipe uses that pattern. Bedrock add-ons can't take screenshots, so it samples the world (`scripts/camera.js`): a 32×32 grid of `getBlockFromRay` rays over a 70° view, colored from a block table (`scripts/photo_colors.js`; `Block.getMapColor` is Beta-only) with face shading, sky light (a ray up from each hit: open sky, dappled under leaves, dim under roofs and in caves), water depth tint, lava, distance haze, day/night sky with sun, moon and stars, and mobs/players as colored boxes. Rays run under a 4 ms-per-tick budget (≈1 s for a photo) |
-| Photo | `vultrom:photo`, stacks to 1, not in creative. The picture is a 1024-character string (one of 64 palette colors per pixel) in the item's dynamic properties, plus who/where/when in its lore. Viewer: an `ActionFormData` whose body is 16 lines of 32 half-block glyphs from the resource pack's font pages `glyph_E2`…`glyph_F1` (one glyph = a top and a bottom pixel). Framed picture: 16 `vultrom:photo_tile` entities, each drawing two rows; every pixel is a 64-sided drum turned by Molang from packed int properties so the right palette color faces out (no experiments, no particles) |
+| Camera | `vultrom:camera`, stacks to 1, Equipment tab, 2 s cooldown (`minecraft:cooldown` category `vultrom_camera`). Recipe `recipes/camera.json` (shaped, crafting table): `IRI` / `QGQ` / `IRI` with I = iron ingot, R = redstone, Q = quartz, G = glass; no vanilla recipe uses that pattern. Bedrock add-ons can't take screenshots, so it samples the world (`scripts/camera.js`): a 64×64 grid of `getBlockFromRay` rays over a 70° view, colored from a block table (`scripts/photo_colors.js`; `Block.getMapColor` is Beta-only) with face shading, sky light (a ray up from each hit: open sky, dappled under leaves, dim under roofs and in caves), water depth tint, lava, distance haze, day/night sky with sun, moon and stars, and mobs/players as colored boxes. Rays run under a 4 ms-per-tick budget shared by everyone developing at once, at most 256 pixels per player per tick (≈1–3 s for a photo), and the sky-light ray is cached per block face |
+| Photo | `vultrom:photo`, stacks to 1, not in creative. The picture is a 4096-character string (one of 64 palette colors per pixel; 1024 for v0.1.10's 32×32 photos, which still work) in the item's dynamic properties (limit 32,767), plus who/where/when/size in its lore. Viewer: an `ActionFormData` whose body is 16 lines of 32 half-block glyphs from the resource pack's font pages `glyph_E2`…`glyph_F1` (one glyph = a top and a bottom pixel); a line fits 32 glyphs, so 64×64 photos show a 2×2-averaged overview with a full-detail page per quarter. Framed picture: 32 `vultrom:photo_tile64` entities (16 `vultrom:photo_tile` for 32×32 photos), each drawing two rows; every pixel is a 64-sided drum turned by Molang from packed int properties so the right palette color faces out (no experiments, no particles). An entity has at most 32 properties of which Molang reads 24 bits exactly, so 128 pixels per entity is the ceiling; tile index comes from the entity variant. Beyond 32 blocks a 64×64 frame stops animating its drums and shows a plain backing |
 | Sapphire / Ruby Scraps | Dropped by the ore when not mined with a diamond/netherite pickaxe; no use |
 
 ### Why not `feature_rules`?
@@ -168,3 +168,10 @@ Bedrock Wiki / creator docs: custom `features` + `feature_rules` need the **Cust
 - **Photo:** new item `vultrom:photo` with lore “Taken by …”, coordinates and dimension, and the in-game day and time. The picture is stored on the item.
 - **View it:** right-click a Photo to open it in a window, drawn with 4,096 two-color glyphs from new resource-pack font pages.
 - **Hang it:** right-click the side of a block to hang it as a framed 1×1 picture; right-click to view it, hit it to take it down.
+
+### v0.1.11
+
+- **64×64 photos:** the Camera now samples a 64×64 grid (4,096 rays, four times the detail). Developing shows a progress bar on the action bar and still runs under a shared 4 ms-per-tick budget, so two players snapping at once don't lag the game; the sky-light check is reused per block face (about 1.2 rays per pixel).
+- **Viewer:** a form line only fits 32 glyphs, so a 64×64 photo opens as a 32×32 overview with buttons for each quarter at full detail. 32×32 photos from v0.1.10 open on one page as before.
+- **Framed 64×64 picture:** 32 tile entities with 128 pixels each (the per-entity property limit), all at full resolution and gap-free. Frames farther than 32 blocks skip their pixel animation and show a plain backing, so a gallery of photos stays cheap. 32×32 photos keep their 16-tile frame; frames hung in v0.1.10 keep working.
+- **Storage:** the photo is stored once per frame instead of on every tile; a 64×64 photo is about 4.2 KB of the 32 KB dynamic-property limit.

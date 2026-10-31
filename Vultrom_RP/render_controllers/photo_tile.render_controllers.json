@@ -3,12 +3,52 @@
 	"render_controllers": {
 		"controller.render.vultrom_photo_tile": {
 			"geometry": "Geometry.default",
-			"materials": [{ "*": "Material.default" }],
-			"textures": ["Texture.default"],
+			"materials": [
+				{
+					"*": "Material.default"
+				}
+			],
+			"textures": [
+				"Texture.default"
+			],
 			"part_visibility": [
-				{ "*": true },
-				{ "border_top": "query.property('vultrom:tile') == 0" },
-				{ "border_bottom": "query.property('vultrom:tile') == 15" }
+				{
+					"*": true
+				},
+				{
+					"border_top": "query.property('vultrom:tile') == 0"
+				},
+				{
+					"border_bottom": "query.property('vultrom:tile') == 15"
+				}
+			]
+		},
+		"controller.render.vultrom_photo_tile64": {
+			"geometry": "Geometry.default",
+			"materials": [
+				{
+					"*": "Material.default"
+				}
+			],
+			"textures": [
+				"Texture.default"
+			],
+			"part_visibility": [
+				{
+					"*": true
+				},
+				{
+					"border_top": "q.variant == 0"
+				},
+				{
+					"border_bottom": "q.variant == 31"
+				},
+				{
+					"px_*": "q.distance_from_camera < 32"
+				},
+				{
+					"backing": "q.distance_from_camera >= 32"
+				}
 			]
 		}
 	}

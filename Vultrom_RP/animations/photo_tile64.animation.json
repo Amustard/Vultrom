@@ -1,0 +1,913 @@
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"animation.vultrom.photo_tile64.pixels": {
+			"loop": true,
+			"bones": {
+				"strip": {
+					"position": [
+						0,
+						"-q.variant * 0.4375",
+						0
+					]
+				},
+				"px_0_0": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p0'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_1": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p0') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_2": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p0') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_3": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p0') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_4": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p1'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_5": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p1') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_6": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p1') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_7": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p1') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_8": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p2'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_9": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p2') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_10": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p2') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_11": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p2') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_12": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p3'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_13": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p3') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_14": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p3') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_15": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p3') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_16": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p4'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_17": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p4') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_18": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p4') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_19": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p4') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_20": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p5'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_21": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p5') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_22": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p5') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_23": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p5') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_24": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p6'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_25": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p6') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_26": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p6') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_27": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p6') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_28": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p7'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_29": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p7') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_30": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p7') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_31": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p7') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_32": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p8'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_33": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p8') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_34": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p8') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_35": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p8') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_36": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p9'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_37": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p9') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_38": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p9') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_39": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p9') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_40": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p10'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_41": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p10') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_42": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p10') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_43": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p10') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_44": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p11'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_45": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p11') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_46": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p11') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_47": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p11') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_48": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p12'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_49": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p12') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_50": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p12') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_51": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p12') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_52": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p13'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_53": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p13') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_54": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p13') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_55": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p13') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_56": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p14'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_57": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p14') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_58": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p14') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_59": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p14') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_60": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p15'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_61": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p15') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_62": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p15') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_0_63": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p15') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_0": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p16'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_1": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p16') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_2": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p16') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_3": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p16') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_4": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p17'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_5": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p17') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_6": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p17') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_7": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p17') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_8": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p18'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_9": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p18') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_10": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p18') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_11": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p18') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_12": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p19'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_13": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p19') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_14": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p19') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_15": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p19') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_16": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p20'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_17": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p20') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_18": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p20') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_19": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p20') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_20": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p21'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_21": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p21') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_22": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p21') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_23": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p21') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_24": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p22'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_25": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p22') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_26": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p22') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_27": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p22') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_28": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p23'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_29": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p23') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_30": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p23') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_31": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p23') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_32": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p24'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_33": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p24') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_34": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p24') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_35": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p24') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_36": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p25'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_37": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p25') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_38": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p25') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_39": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p25') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_40": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p26'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_41": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p26') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_42": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p26') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_43": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p26') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_44": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p27'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_45": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p27') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_46": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p27') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_47": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p27') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_48": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p28'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_49": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p28') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_50": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p28') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_51": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p28') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_52": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p29'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_53": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p29') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_54": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p29') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_55": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p29') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_56": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p30'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_57": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p30') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_58": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p30') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_59": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p30') / 262144) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_60": {
+					"rotation": [
+						"-math.mod(q.property('vultrom:p31'), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_61": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p31') / 64), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_62": {
+					"rotation": [
+						"-math.mod(math.floor(q.property('vultrom:p31') / 4096), 64) * 5.625",
+						0,
+						0
+					]
+				},
+				"px_1_63": {
+					"rotation": [
+						"-math.floor(q.property('vultrom:p31') / 262144) * 5.625",
+						0,
+						0
+					]
+				}
+			}
+		}
+	}
+}

@@ -1,13 +1,16 @@
 /**
  * Camera → Photo. Bedrock add-ons can't screenshot, so the Camera samples the world: it casts
- * a 32×32 grid of rays across the player's view (spread over ticks under a time budget),
- * colors each hit from a block table (photo_colors.js) with face shading, sky light, water,
- * distance haze and sky, and quantizes to the 64-color palette. The Photo item carries the
- * 1024-character picture in its dynamic properties.
+ * a 64×64 grid of rays across the player's view (spread over ticks under a time budget shared
+ * by every running capture), colors each hit from a block table (photo_colors.js) with face
+ * shading, sky light, water, distance haze and sky, and quantizes to the 64-color palette.
+ * The Photo item carries the picture (4096 characters; 1024 for v0.1.10's 32×32 photos) in
+ * its dynamic properties.
  *
  * Viewing: using a Photo opens a form that draws it with half-block glyphs from the RP font
- * pages (glyph_E2 … glyph_F1). Using it on the side of a block hangs it as a framed picture:
- * 16 vultrom:photo_tile entities, each drawing two rows from packed int properties.
+ * pages (glyph_E2 … glyph_F1). A form line fits 32 glyphs, so a 64×64 photo shows as a 32×32
+ * overview with buttons for each full-detail quarter. Using it on the side of a block hangs
+ * it as a framed picture of tile entities that each draw two rows from packed int properties
+ * (FRAMES in photo_core.js: 32 vultrom:photo_tile64 for 64×64, 16 vultrom:photo_tile for 32×32).
  */
 import { world, system, ItemStack, GameMode } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
@@ -28,11 +31,23 @@ import {
 	WATER,
 	DEEP_WATER
 } from "./photo_colors.js";
-import { PHOTO_SIZE, PHOTO_PIXELS, TILE_COUNT, nearestColor, encodePixels, decodePixels, photoLines, photoLore, tileProperties } from "./photo_core.js";
+import {
+	PHOTO_SIZE,
+	VIEW_SIZE,
+	FRAMES,
+	TILE_TYPES,
+	nearestColor,
+	encodePixels,
+	decodePixels,
+	downsample,
+	crop,
+	photoLines,
+	photoLore,
+	tileProperties
+} from "./photo_core.js";
 
 const CAMERA = "vultrom:camera";
 const PHOTO = "vultrom:photo";
-const TILE = "vultrom:photo_tile";
 const CUTTER = "vultrom:gemstone_cutter";
 const OVERWORLD = "minecraft:overworld";
 
@@ -44,7 +59,8 @@ const ENTITY_RANGE = 64;
 const MAX_ENTITIES = 48;
 const COOLDOWN_TICKS = 40;
 const COOLDOWN_CATEGORY = "vultrom_camera";
-// Per-tick ray budget: stop after this many ms (or MAX pixels), but always make progress.
+// Per-tick ray budget, shared by all running captures: stop after this many ms (or MAX
+// pixels per capture), but always make progress.
 const TICK_BUDGET_MS = 4;
 const MIN_PIXELS_PER_TICK = 4;
 const MAX_PIXELS_PER_TICK = 256;
@@ -97,7 +113,7 @@ function castRay(dim, origin, dir, liquids, maxDistance = MAX_DIST, passable = t
 	if (!hit?.block) return undefined;
 	const { location: loc, typeId } = hit.block;
 	const point = add(loc, hit.faceLocation);
-	return { typeId, face: hit.face, point, dist: Math.hypot(point.x - origin.x, point.y - origin.y, point.z - origin.z) };
+	return { typeId, face: hit.face, block: loc, point, dist: Math.hypot(point.x - origin.x, point.y - origin.y, point.z - origin.z) };
 }
 
 /** Distance along `dir` to the box, and the axis of the face it enters (0 x, 1 y, 2 z). */
@@ -157,14 +173,21 @@ function nearestEntity(job, dir, limit) {
 	return best;
 }
 
-/** Sky light at a hit: open sky, dappled under leaves or glass, dim under roofs and in caves. */
+/**
+ * Sky light at a hit: open sky, dappled under leaves or glass, dim under roofs and in caves.
+ * Cached per block face, since neighboring pixels mostly land on the same faces.
+ */
 function lightAt(job, hit) {
 	if (isEmissive(hit.typeId)) return 1;
 	if (job.dim.id !== OVERWORLD) return job.light;
+	const key = `${hit.block.x},${hit.block.y},${hit.block.z},${hit.face}`;
+	const known = job.lightCache.get(key);
+	if (known !== undefined) return known;
 	const from = add(hit.point, NORMALS[hit.face] ?? NORMALS.Up, 0.05);
 	const cover = castRay(job.dim, from, NORMALS.Up, false, SKY_CHECK_DIST, false);
-	if (!cover) return job.light;
-	return /leaves|glass/.test(cover.typeId) ? job.light * 0.8 : job.shade;
+	const light = !cover ? job.light : /leaves|glass/.test(cover.typeId) ? job.light * 0.8 : job.shade;
+	job.lightCache.set(key, light);
+	return light;
 }
 
 /** ±6% per-block brightness so flat fields and walls keep some texture. */
@@ -215,10 +238,10 @@ function viewBasis(player) {
 }
 
 function rayFor(job, i) {
-	const x = i % PHOTO_SIZE;
-	const y = Math.floor(i / PHOTO_SIZE);
-	const sx = ((x + 0.5) / PHOTO_SIZE) * 2 - 1;
-	const sy = 1 - ((y + 0.5) / PHOTO_SIZE) * 2;
+	const x = i % job.size;
+	const y = Math.floor(i / job.size);
+	const sx = ((x + 0.5) / job.size) * 2 - 1;
+	const sy = 1 - ((y + 0.5) / job.size) * 2;
 	const { f, r, u } = job.basis;
 	return norm(add(add(f, r, sx * job.tan), u, sy * job.tan));
 }
@@ -258,8 +281,8 @@ function playAt(player, sound, options = {}) {
 	}
 }
 
-/** Shutter: sound, flash, cooldown, then the capture runs over the next ticks. */
-export function snap(player) {
+/** Shutter: sound, flash, cooldown, then the `size`×`size` capture runs over the next ticks. */
+export function snap(player, size = PHOTO_SIZE) {
 	const now = system.currentTick;
 	if (captures.has(player.id)) return false;
 	if (now - (lastShot.get(player.id) ?? -Infinity) < COOLDOWN_TICKS) return false;
@@ -289,9 +312,13 @@ export function snap(player) {
 		shade: 0.08 + 0.45 * day,
 		fog: fogColor(time, dim.id),
 		entities: collectEntities(player, dim, origin, basis.f),
-		pixels: new Uint8Array(PHOTO_PIXELS),
+		lightCache: new Map(),
+		size,
+		pixels: new Uint8Array(size * size),
 		next: 0,
+		shownPercent: -1,
 		meta: {
+			size,
 			by: player.name,
 			x: Math.floor(loc.x),
 			y: Math.floor(loc.y),
@@ -304,14 +331,24 @@ export function snap(player) {
 	return true;
 }
 
-function stepCapture(playerId, job) {
+const PROGRESS_BARS = 20;
+
+function showProgress(job) {
+	const percent = Math.floor((job.next / job.pixels.length) * 100);
+	if (percent === job.shownPercent) return;
+	job.shownPercent = percent;
+	const done = Math.floor((percent / 100) * PROGRESS_BARS);
+	job.player.onScreenDisplay?.setActionBar(`§7Developing… §f${"|".repeat(done)}§8${"|".repeat(PROGRESS_BARS - done)} §7${percent}%`);
+}
+
+function stepCapture(playerId, job, deadline) {
 	if (!job.player.isValid()) {
 		captures.delete(playerId);
 		return;
 	}
-	const start = Date.now();
-	for (let n = 0; job.next < PHOTO_PIXELS && n < MAX_PIXELS_PER_TICK; n++) {
-		if (n >= MIN_PIXELS_PER_TICK && Date.now() - start >= TICK_BUDGET_MS) break;
+	const total = job.pixels.length;
+	for (let n = 0; job.next < total && n < MAX_PIXELS_PER_TICK; n++) {
+		if (n >= MIN_PIXELS_PER_TICK && Date.now() >= deadline) break;
 		let color = 0;
 		try {
 			color = samplePixel(job, rayFor(job, job.next));
@@ -321,8 +358,8 @@ function stepCapture(playerId, job) {
 		}
 		job.pixels[job.next++] = nearestColor(color);
 	}
-	if (job.next < PHOTO_PIXELS) {
-		job.player.onScreenDisplay?.setActionBar(`§7Developing… ${Math.floor((job.next / PHOTO_PIXELS) * 100)}%`);
+	if (job.next < total) {
+		showProgress(job);
 		return;
 	}
 	captures.delete(playerId);
@@ -335,22 +372,27 @@ function nextPhotoId() {
 	return id;
 }
 
+/** @param {string} pixels encoded pixels; the photo's size follows from their count */
 export function makePhotoItem(meta, pixels) {
 	const item = new ItemStack(PHOTO, 1);
-	item.setLore(photoLore(meta));
+	item.setLore(photoLore({ ...meta, size: Math.round(Math.sqrt(pixels.length)) }));
 	item.setDynamicProperty(PHOTO_PROP, JSON.stringify(meta));
 	item.setDynamicProperty(PIXELS_PROP, pixels);
 	return item;
 }
 
-/** @returns {{ meta: any, pixels: Uint8Array, text: string } | undefined} */
+/** Photo from its stored meta and pixels; v0.1.10 photos have no meta.size and 1024 pixels. */
+function photoFrom(meta, text) {
+	const pixels = decodePixels(text);
+	if (!pixels || !meta) return undefined;
+	return { meta, pixels, text, size: Math.round(Math.sqrt(pixels.length)) };
+}
+
+/** @returns {{ meta: any, pixels: Uint8Array, text: string, size: number } | undefined} */
 export function readPhoto(item) {
 	if (item?.typeId !== PHOTO) return undefined;
 	try {
-		const text = item.getDynamicProperty(PIXELS_PROP);
-		const pixels = decodePixels(text);
-		const meta = JSON.parse(String(item.getDynamicProperty(PHOTO_PROP)));
-		return pixels && meta ? { meta, pixels, text } : undefined;
+		return photoFrom(JSON.parse(String(item.getDynamicProperty(PHOTO_PROP))), item.getDynamicProperty(PIXELS_PROP));
 	} catch (_) {
 		return undefined;
 	}
@@ -375,7 +417,13 @@ function developPhoto(job) {
 }
 
 system.runInterval(() => {
-	for (const [playerId, job] of captures) stepCapture(playerId, job);
+	if (captures.size === 0) return;
+	const end = Date.now() + TICK_BUDGET_MS;
+	let waiting = captures.size;
+	for (const [playerId, job] of captures) {
+		const now = Date.now();
+		stepCapture(playerId, job, now + Math.max(0, end - now) / waiting--);
+	}
 }, 1);
 
 // ---------- viewing ----------
@@ -383,16 +431,44 @@ system.runInterval(() => {
 /** Players with a Photo form open, so held-down use doesn't stack forms. */
 const viewing = new Set();
 
+const QUARTERS = [
+	{ label: "Top left", x: 0, y: 0 },
+	{ label: "Top right", x: 1, y: 0 },
+	{ label: "Bottom left", x: 0, y: 1 },
+	{ label: "Bottom right", x: 1, y: 1 }
+];
+
+/**
+ * Shows a photo. 32×32 photos fit one form; bigger ones open as a half-size overview whose
+ * buttons zoom into each quarter at full detail (Back returns to the overview).
+ */
 export async function viewPhoto(player, photo) {
 	if (viewing.has(player.id)) return;
 	viewing.add(player.id);
 	try {
-		const lore = photoLore(photo.meta);
-		const form = new ActionFormData()
-			.title(`Photo #${photo.meta.id}`)
-			.body([...photoLines(photo.pixels), "", ...lore.slice(0, 3)].join("\n"))
-			.button("Close");
-		await showForm(player, form);
+		const title = `Photo #${photo.meta.id}`;
+		const info = photoLore(photo.meta).slice(0, 3);
+		if (photo.size <= VIEW_SIZE) {
+			await showForm(player, new ActionFormData().title(title).body([...photoLines(photo.pixels), "", ...info].join("\n")).button("Close"));
+			return;
+		}
+		const overview = downsample(photo.pixels, photo.size);
+		const part = photo.size / 2;
+		for (;;) {
+			const form = new ActionFormData().title(title).body([...photoLines(overview), "", ...info, "§7Pick a quarter to see it in full detail."].join("\n"));
+			for (const q of QUARTERS) form.button(q.label);
+			form.button("Close");
+			const choice = await showForm(player, form);
+			const quarter = choice.canceled ? undefined : QUARTERS[choice.selection];
+			if (!quarter || !player.isValid()) return;
+			const zoom = new ActionFormData()
+				.title(`${title} · ${quarter.label}`)
+				.body(photoLines(crop(photo.pixels, photo.size, quarter.x * part, quarter.y * part, part)).join("\n"))
+				.button("Back")
+				.button("Close");
+			const back = await showForm(player, zoom);
+			if (back.canceled || back.selection !== 0 || !player.isValid()) return;
+		}
 	} finally {
 		viewing.delete(player.id);
 	}
@@ -402,7 +478,9 @@ export async function viewPhoto(player, photo) {
 
 function tilesAt(dim, at) {
 	try {
-		return dim.getEntities({ type: TILE, location: { x: at.x, y: at.y + 0.5, z: at.z }, maxDistance: 0.75 });
+		return dim
+			.getEntities({ location: { x: at.x, y: at.y + 0.5, z: at.z }, maxDistance: 0.75 })
+			.filter((e) => TILE_TYPES.has(e.typeId));
 	} catch (_) {
 		return [];
 	}
@@ -437,19 +515,21 @@ export function hangPhoto(player, block, face) {
 		say("§7There's already a photo there.");
 		return false;
 	}
+	const frame = FRAMES[photo.size];
 	const frameId = `${photo.meta.id}:${system.currentTick}:${Math.floor(Math.random() * 1e9)}`;
-	const record = JSON.stringify({ meta: photo.meta, pixels: photo.text });
 	const spawned = [];
 	try {
-		for (let t = 0; t < TILE_COUNT; t++) {
-			const tile = dim.spawnEntity(TILE, at);
+		for (let t = 0; t < frame.tiles; t++) {
+			const tile = dim.spawnEntity(frame.entity, at);
 			spawned.push(tile);
 			tile.setRotation({ x: 0, y: yaw });
-			tile.setProperty("vultrom:tile", t);
-			tileProperties(photo.pixels, t).forEach((v, k) => tile.setProperty(`vultrom:p${k}`, v));
+			if (frame.tileProperty) tile.setProperty(frame.tileProperty, t);
+			else tile.triggerEvent(`${frame.tileEvent}${t}`);
+			tileProperties(photo.pixels, t, photo.size).forEach((v, k) => tile.setProperty(`vultrom:p${k}`, v));
 			tile.setDynamicProperty(FRAME_PROP, frameId);
-			tile.setDynamicProperty(PHOTO_PROP, record);
 		}
+		// Only the first tile keeps the photo itself; the others find it by frame id.
+		spawned[0].setDynamicProperty(PHOTO_PROP, JSON.stringify({ meta: photo.meta, pixels: photo.text }));
 	} catch (err) {
 		console.warn("[vultrom] hanging photo failed:", err);
 		for (const tile of spawned) if (tile.isValid()) tile.remove();
@@ -461,14 +541,21 @@ export function hangPhoto(player, block, face) {
 	return true;
 }
 
+/** The photo a frame tile shows (v0.1.10 frames store it on every tile, newer ones on one). */
 function frameRecord(tile) {
-	try {
-		const record = JSON.parse(String(tile.getDynamicProperty(PHOTO_PROP)));
-		const pixels = decodePixels(record.pixels);
-		return pixels ? { meta: record.meta, pixels, text: record.pixels } : undefined;
-	} catch (_) {
-		return undefined;
+	const frameId = tile.getDynamicProperty(FRAME_PROP);
+	const holders = [tile, ...tilesAt(tile.dimension, tile.location).filter((t) => t.id !== tile.id && t.getDynamicProperty(FRAME_PROP) === frameId)];
+	for (const holder of holders) {
+		const stored = holder.getDynamicProperty(PHOTO_PROP);
+		if (stored === undefined) continue;
+		try {
+			const record = JSON.parse(String(stored));
+			return photoFrom(record.meta, record.pixels);
+		} catch (_) {
+			return undefined;
+		}
 	}
+	return undefined;
 }
 
 /** Takes down the framed photo `tile` belongs to; drops the Photo unless in creative. */
@@ -547,7 +634,7 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 
 world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
 	const { target, player } = event;
-	if (target?.typeId !== TILE || !player) return;
+	if (!TILE_TYPES.has(target?.typeId) || !player) return;
 	event.cancel = true;
 	system.run(() => {
 		if (!target.isValid() || !player.isValid()) return;
@@ -558,7 +645,7 @@ world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
 
 world.afterEvents.entityHitEntity.subscribe((event) => {
 	const { hitEntity, damagingEntity } = event;
-	if (hitEntity?.typeId !== TILE || damagingEntity?.typeId !== "minecraft:player") return;
+	if (!TILE_TYPES.has(hitEntity?.typeId) || damagingEntity?.typeId !== "minecraft:player") return;
 	try {
 		if (hitEntity.isValid()) takeDownPhoto(hitEntity, damagingEntity);
 	} catch (err) {
