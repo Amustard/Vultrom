@@ -1,0 +1,234 @@
+{
+	"format_version": "1.21.20",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "vultrom:photo_tile",
+			"is_spawnable": false,
+			"is_summonable": true,
+			"properties": {
+				"vultrom:tile": {
+					"type": "int",
+					"range": [
+						0,
+						15
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p0": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p1": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p2": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p3": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p4": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p5": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p6": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p7": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p8": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p9": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p10": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p11": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p12": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p13": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p14": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				},
+				"vultrom:p15": {
+					"type": "int",
+					"range": [
+						0,
+						16777215
+					],
+					"default": 0,
+					"client_sync": true
+				}
+			}
+		},
+		"components": {
+			"minecraft:type_family": {
+				"family": [
+					"vultrom_photo",
+					"inanimate"
+				]
+			},
+			"minecraft:collision_box": {
+				"width": 0.1,
+				"height": 0.1
+			},
+			"minecraft:custom_hit_test": {
+				"hitboxes": [
+					{
+						"width": 1.0,
+						"height": 1.0,
+						"pivot": [
+							0,
+							0.5,
+							0
+						]
+					}
+				]
+			},
+			"minecraft:physics": {
+				"has_gravity": false,
+				"has_collision": false
+			},
+			"minecraft:pushable": {
+				"is_pushable": false,
+				"is_pushable_by_piston": false
+			},
+			"minecraft:knockback_resistance": {
+				"value": 1.0
+			},
+			"minecraft:health": {
+				"value": 1,
+				"max": 1
+			},
+			"minecraft:damage_sensor": {
+				"triggers": [
+					{
+						"cause": "all",
+						"deals_damage": false
+					}
+				]
+			},
+			"minecraft:fire_immune": true,
+			"minecraft:persistent": {},
+			"minecraft:interact": {
+				"interactions": [
+					{
+						"on_interact": {
+							"filters": {
+								"test": "is_family",
+								"subject": "other",
+								"value": "player"
+							},
+							"event": "vultrom:view_photo",
+							"target": "self"
+						},
+						"interact_text": "action.interact.vultrom.view_photo"
+					}
+				]
+			}
+		},
+		"events": {
+			"vultrom:view_photo": {}
+		}
+	}
+}

@@ -9,6 +9,10 @@
 		},
 		"components": {
 			"minecraft:max_stack_size": 1,
+			"minecraft:cooldown": {
+				"category": "vultrom_camera",
+				"duration": 2.0
+			},
 			"minecraft:icon": {
 				"textures": {
 					"default": "vultrom_camera"

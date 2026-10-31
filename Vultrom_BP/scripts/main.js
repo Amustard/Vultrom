@@ -9,10 +9,13 @@
  * so training replaces the nearest villager_v2 with vultrom:jeweler (vanilla villager_v2
  * behavior with the Jeweler profession). Clicking while holding Raw Sapphire or Raw Ruby
  * cuts it directly (sneak cuts the whole stack). After a player sells him a gem, the
- * Jeweler holds that gem and celebrates for ~8 seconds.
+ * Jeweler holds that gem and celebrates for ~8 seconds. The Camera and Photos live in
+ * camera.js.
  */
 import { world, system, BlockTypes, ItemStack, GameMode } from "@minecraft/server";
-import { ActionFormData, FormCancelationReason } from "@minecraft/server-ui";
+import { ActionFormData } from "@minecraft/server-ui";
+import { showForm } from "./forms.js";
+import "./camera.js";
 
 const CUTTER = "vultrom:gemstone_cutter";
 const JEWELER = "vultrom:jeweler";
@@ -131,9 +134,6 @@ function confirmJeweler(player) {
 		]
 	});
 }
-
-const FORM_BUSY_RETRIES = 10;
-const FORM_BUSY_RETRY_TICKS = 5;
 
 function cutterCenter(block) {
 	return { x: block.location.x + 0.5, y: block.location.y + 0.5, z: block.location.z + 0.5 };
@@ -263,16 +263,6 @@ function cutHeldGem(player, wholeStack) {
 	const held = player.getComponent("minecraft:inventory")?.container?.getItem(player.selectedSlotIndex);
 	if (!held || !CUTS.has(held.typeId)) return;
 	cutGems(player, held.typeId, wholeStack ? held.amount : 1);
-}
-
-/** Shows `form`, retrying while the player is still busy with the click that opened it. */
-async function showForm(player, form) {
-	for (let attempt = 0; ; attempt++) {
-		const response = await form.show(player);
-		if (!response.canceled || response.cancelationReason !== FormCancelationReason.UserBusy) return response;
-		if (attempt >= FORM_BUSY_RETRIES || !player.isValid()) return response;
-		await new Promise((resolve) => system.runTimeout(resolve, FORM_BUSY_RETRY_TICKS));
-	}
 }
 
 /**

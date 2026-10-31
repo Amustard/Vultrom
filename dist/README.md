@@ -2,11 +2,11 @@
 
 | File | What |
 |------|------|
-| **[Vultrom-0.1.9.mcaddon](./Vultrom-0.1.9.mcaddon)** | Both packs — easiest install |
-| [Vultrom_BP-0.1.9.mcpack](./Vultrom_BP-0.1.9.mcpack) | Behavior pack only |
-| [Vultrom_RP-0.1.9.mcpack](./Vultrom_RP-0.1.9.mcpack) | Resource pack only |
+| **[Vultrom-0.1.10.mcaddon](./Vultrom-0.1.10.mcaddon)** | Both packs — easiest install |
+| [Vultrom_BP-0.1.10.mcpack](./Vultrom_BP-0.1.10.mcpack) | Behavior pack only |
+| [Vultrom_RP-0.1.10.mcpack](./Vultrom_RP-0.1.10.mcpack) | Resource pack only |
 
-**Current:** v0.1.9 build 2 (adds the Camera; packs **1.0.9**, Bedrock **1.21.50+**). Rebuild with `tools/build-dist.sh`.
+**Current:** v0.1.10 (the Camera takes Photos you can view or hang; packs **1.0.10**, Bedrock **1.21.50+**). Rebuild with `tools/build-dist.sh`.
 
 **Install:** download → double-click to import into Minecraft Bedrock → create/edit world → enable **both** packs → play. **No experiments required.**
 

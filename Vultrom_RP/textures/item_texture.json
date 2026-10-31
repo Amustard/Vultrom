@@ -22,6 +22,9 @@
 		},
 		"vultrom_camera": {
 			"textures": "textures/items/camera"
+		},
+		"vultrom_photo": {
+			"textures": "textures/items/photo"
 		}
 	}
 }
